@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>蛋白质可视化工具 - 1E6B</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.1.0/3Dmol-min.js"></script>
+    <style>
+        :root {
+            --primary: #2196F3;
+            --secondary: #4CAF50;
+            --background: #f8f9fa;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Arial', sans-serif;
+            background: var(--background);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        #viewer3d {
+            width: 100%;
+            height: 600px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;   
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        button {
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: #1976D2;
+            transform: scale(1.02);
+        }
+
+        button.active {
+            background: var(--secondary);
+            box-shadow: 0 2px 8px rgba(76,175,80,0.3);
+        }
+
+        .status-bar {
+            margin-top: 15px;             /* 顶部外边距 */
+            margin-bottom: 15px; /* 增加底部外边距，例如15px */
+            padding: 10px;               /* 内边距 */
+            background: white;           /* 白色背景 */
+            border-radius: 6px;          /* 圆角半径 */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);  /* 阴影效果 */
+        }
+
+        .annotation-panel {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 16px 18px 12px 18px;
+            font-size: 15px;
+            color: #222;
+            max-width: 340px;
+            z-index: 10;
+            line-height: 1.7;
+        }
+        .annotation-panel ul {
+            margin: 8px 0 0 0;
+            padding-left: 18px;
+        }
+        .annotation-panel li {
+            margin-bottom: 6px;
+        }
+        .annotation-panel strong {
+            font-size: 16px;
+            color: #1976D2;
+        }
+
+
+        /* 底部水印样式 */
+        .footer-watermark {
+            left: 0;         /* 从左开始 */
+            right: 0;        /* 到右结束 */
+            display: flex;
+            justify-content: center; /* 水平居中 */
+            align-items: center;     /* 垂直居中 */
+            width: 100%; 
+            padding: 15px 0;
+            background: white;
+            border-top: 1px solid #eee;
+            border-radius: 6px;     /* 添加圆角 */
+            box-shadow: 0 -2px 15px rgba(0,0,0,0.05); /* 添加上阴影 */
+            max-width: 1200px;         /* 最大宽度限制 */
+            margin: 0 auto;           /* 水平居中 */
+            
+        }
+
+        .watermark-content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            max-width: 800px;
+            width: 100%;
+            justify-content: center;
+        }
+            
+
+        .logo-container {
+            margin-right: 0;  /* 移除原有右边距 */
+            width: 70px;  /* 固定容器尺寸 */
+            height: 70px;
+            padding: 5px;  /* 内边距保护图标 */
+            background: rgba(255,255,255,0.9);  /* 半透明白底 */
+            border-radius: 8px;  /* 圆角匹配UI风格 */
+        }
+
+        .logo-container img {
+            width: 100%;  /* 充满容器 */
+            height: 100%;
+            object-fit: contain;  /* 等比例适配 */
+        }
+            
+
+
+        .text-container {
+            text-align: center;
+            font-size: 14px;
+            color: #555;
+            line-height: 1.5;
+        }
+
+        .text-container div:first-child {
+            font-weight: bold;
+            font-size: 16px;
+            color: #2196F3;
+            margin-bottom: 4px;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>蛋白质可视化工具 - 1E6B</h1>
+
+        
+        <div id="viewer3d">
+            <div class="annotation-panel" id="annotation-panel">
+                <!-- 注释信息将由JS动态填充 -->
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button onclick="setDisplayMode('ribbon')">🎗️ 飘带模型</button>
+            <button onclick="setDisplayMode('wireframe')">🔲 线棒模型</button>
+            <button onclick="setDisplayMode('ballstick')">⚾ 棒球棍模型</button>
+            <button onclick="setDisplayMode('spacefill')">🔵 空间填充</button>
+            <button onclick="setDisplayMode('surface')">🟢 表面填充</button>
+            <button onclick="setDisplayMode('hydrophobic')">🌊 亲疏水分布</button>
+            <!-- <button onclick="setDisplayMode('alpha')">🌀 阿尔法螺旋</button> -->
+        </div>
+
+        <div class="status-bar" id="status">
+            正在加载模型...
+        </div>
+    </div>
+
+    <script>
+        // 初始化3D查看器
+        const viewer = $3Dmol.createViewer("viewer3d", {
+            background: "#ffffff",
+            defaultcolors: $3Dmol.elementColors.JMol
+        });
+
+        // 显示模式配置
+        const displayModes = {
+            ribbon: {
+                style: { 
+                    cartoon: { 
+                        colorfunc: function(atom) {
+                            // 按残基区间分色
+                            const colorBlocks = [
+                                {start: 1, end: 40, color: '#55aa7f'},   // 绿色
+                                {start: 41, end: 80, color: '#d2b777'},  // 黄色
+                                {start: 81, end: 120, color: '#ff8b8d'}, // 粉色
+                                {start: 121, end: 160, color: '#af8aff'},// 紫色
+                                {start: 161, end: 9999, color: '#55aaff'}// 灰蓝
+                            ];
+                            const resi = atom.resi;
+                            for (let block of colorBlocks) {
+                                if (resi >= block.start && resi <= block.end) return block.color;
+                            }
+                            return '#B0B8C1';
+                        },
+                        thickness: 0.6,
+                        arrows: true
+                    }
+                },
+                label: "飘带模型"
+            },
+            wireframe: {
+                style: { 
+                    stick: { radius: 0.12 },
+                    sphere: { radius: 0, opacity: 0 }
+                },
+                label: "线棒模型"
+            },
+            ballstick: {
+                style: { 
+                    stick: { radius: 0.12 },
+                    sphere: { radius: 0.32, opacity: 0.9 }
+                },
+                label: "棒球棍模型"
+            },
+            spacefill: {
+                style: { sphere: { scale: 0.6 } },
+                surface: { type: $3Dmol.SurfaceType.VDW, opts: { opacity: 0.85 } },
+                label: "空间填充模型"
+            },
+            surface: {
+                style: {},
+                surface: null, // 用自定义逻辑
+                label: "表面填充模型"
+            },
+            hydrophobic: {
+                style: (hydrophobic) => ({
+                    [hydrophobic]: { sphere: { color: "#FFD700", scale: 0.6 } },
+                    default: { sphere: { color: "#4169E1", scale: 0.6 } }
+                }),
+                surface: {
+                    type: $3Dmol.SurfaceType.VDW,
+                    opts: { 
+                        opacity: 0.7,
+                        colorfunc: (atom) => hydrophobicResidues.includes(atom.resn) ? "#FFD700" : "#4169E1"
+                    }
+                },
+                label: "亲疏水分布"
+            },
+            alpha: {
+                style: { 
+                    cartoon: { 
+                        color: "#FF6B6B",
+                        thickness: 1.2,
+                        opacity: 0.9,
+                        arrows: true,
+                        ribbon: true,
+                        smoothness: 1
+                    }
+                },
+                label: "阿尔法螺旋",
+                filter: (atom) => atom.ss === 'H' && atom.resi >= 5 && atom.resi <= 15 // 仅显示5-15号残基的α螺旋
+            },
+            beta: {
+                style: { 
+                    cartoon: { 
+                        color: "#4ECDC4",
+                        thickness: 1.2,
+                        opacity: 0.9,
+                        arrows: true,
+                        ribbon: true,
+                        smoothness: 1
+                    }
+                },
+                label: "贝塔折叠",
+                filter: (atom) => atom.ss === 'S'
+            }
+        };
+
+        // 常量定义
+        const hydrophobicResidues = ["ALA","VAL","LEU","ILE","MET","PHE","TRP","PRO"];
+
+        // 注释信息字典
+        const annotationDict = {
+            ribbon: `<strong>飘带模型 (Ribbon)</strong><br>
+            <b>定义：</b>用扁平飘带表示蛋白质二级结构（α螺旋为螺旋状，β折叠为箭头）。<br>
+            <b>特点：</b>忽略原子细节，突出蛋白质骨架的折叠模式，常用颜色区分不同结构域或链。`,
+            wireframe: `<strong>线棒模型 (Wireframe)</strong><br>
+            <b>定义：</b>用线条表示化学键，原子用线条的交点（节点）表示，不显示原子大小。<br>
+            <b>特点：</b>结构简洁，突出分子骨架和键的走向，不区分原子类型。`,
+            ballstick: `<strong>棒球棍模型 (Ball-and-stick)</strong><br>
+            <b>定义：</b>原子用彩色球体表示（不同颜色对应不同元素），化学键用棍状连接。<br>
+            <b>特点：</b>直观显示原子类型、键长和键角，平衡简洁性与信息量。`,
+            spacefill: `<strong>空间填充模型 (Space-filling Model)</strong><br>
+            <b>定义：</b>原子按范德华半径比例显示为球体，重叠部分体现原子间接触。<br>
+            <b>特点：</b>最接近分子实际空间占位的表现方式，无法直接观察键的细节。`,
+            surface: `<strong>表面填充模型 (Surface Model)</strong><br>
+            <b>定义：</b>通过电子密度等值面或溶剂可及表面（SAS/SES）构建分子表面。<br>
+            <b>特点：</b>显示分子轮廓和表面特征（如疏水/亲水区域），常用透明或彩色映射。`,
+            hydrophobic: `<strong>亲疏水分布模型 (Hydrophobic/Hydrophilic Model)</strong><br>
+            <b>定义：</b>通过颜色或表面属性标记分子的亲水（极性）和疏水（非极性）区域。<br>
+            <b>特点：</b>极性区域常用蓝色表示，疏水区域常用黄色表示，可结合表面或空间填充模型实现。`
+        };
+
+        // 核心显示函数
+        async function setDisplayMode(mode) {
+            viewer.removeAllSurfaces();
+            viewer.setStyle({}, {});
+            const config = displayModes[mode];
+            if (!config) return;
+
+            // 应用组合过滤条件
+            viewer.setStyle({
+                ...(config.filter ? { ss: config.filter } : {}),
+                resi: { $between: [5, 15] } // 精确限定残基范围
+            }, config.style);
+            if (mode === 'hydrophobic') {
+                viewer.setStyle({ resn: hydrophobicResidues }, config.style(hydrophobicResidues)[hydrophobicResidues]);
+                viewer.setStyle({ resn: { $not: hydrophobicResidues } }, config.style().default);
+                viewer.addSurface(config.surface.type, config.surface.opts);
+            } else if (mode === 'surface') {
+                viewer.addSurface($3Dmol.SurfaceType.VDW, {
+                    opacity: 0.92,
+                    color: 'spectrum',
+                    smooth: 16,
+                    probeRadius: 2.2
+                });
+            } else {
+                viewer.setStyle({}, config.style);
+                if (config.surface) {
+                    viewer.addSurface(config.surface.type, config.surface.opts);
+                }
+            }
+
+            document.getElementById('status').textContent = `当前模式：${config.label}`;
+            document.querySelectorAll('button').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.includes(config.label));
+            });
+            document.getElementById('annotation-panel').innerHTML = annotationDict[mode] || '';
+            viewer.render();
+        }
+
+        // 加载模型
+        async function loadModel() {
+            try {
+                const response = await fetch('https://files.rcsb.org/view/1E6B.pdb');
+                const data = await response.text();
+                viewer.addModel(data, "pdb");
+                setDisplayMode('ribbon'); // 默认显示飘带模型
+                viewer.zoomTo();
+                viewer.render();
+                document.getElementById('status').textContent = "模型加载完成";
+
+                // // 默认显示飘带模型(额外加的)
+                // setTimeout(() => {
+                //     setDisplayMode('ribbon');
+                //     // 隐藏加载覆盖层
+                //     document.getElementById('loading-overlay').style.opacity = '0';
+                //     setTimeout(() => {
+                //         document.getElementById('loading-overlay').style.display = 'none';
+                //     });
+                // });
+
+                return true;
+            } catch (error) {
+                document.getElementById('status').textContent = "模型加载失败：" + error.message;
+                console.error(error);
+                return false;
+            }
+        }
+
+        // 初始化执行
+        loadModel();
+        viewer.enableZoom(true);
+        viewer.enablePan(true);
+
+        // 初始化时默认显示ribbon注释
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('annotation-panel').innerHTML = annotationDict['ribbon'];
+        });
+    </script>
+</body>
+</html>
+
+
+<!-- 底部水印区域 -->
+<div class="footer-watermark">
+    <div class="watermark-content">
+        <div class="logo-container">
+            <div class="logo">
+                 <img src="images/logo.svg" alt="BioStruct Logo">
+            </div>
+        </div>
+        <div class="text-container">
+            <div>BioStruct 展示平台</div>
+            <div>西南大学生命科学学院 | 制作：兰婷、谢佳宏</div>
+            <div>© Southwest University | Ting Lan, Jiahong Xie</div>
+        </div>
+    </div>
+    
+</div>
