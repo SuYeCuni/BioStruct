@@ -66,12 +66,11 @@
         }
 
         .status-bar {
-            margin-top: 15px;             /* 顶部外边距 */
-            margin-bottom: 15px; /* 增加底部外边距，例如15px */
-            padding: 10px;               /* 内边距 */
-            background: white;           /* 白色背景 */
-            border-radius: 6px;          /* 圆角半径 */
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);  /* 阴影效果 */
+            margin-top: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         .annotation-panel {
@@ -82,9 +81,9 @@
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             padding: 16px 18px 12px 18px;
-            font-size: 15px;
+            font-size: 12px;
             color: #222;
-            max-width: 340px;
+            max-width: 250px;
             z-index: 10;
             line-height: 1.7;
         }
@@ -103,20 +102,14 @@
 
         /* 底部水印样式 */
         .footer-watermark {
-            left: 0;         /* 从左开始 */
-            right: 0;        /* 到右结束 */
             display: flex;
-            justify-content: center; /* 水平居中 */
-            align-items: center;     /* 垂直居中 */
-            width: 100%; 
+            justify-content: center;
+            align-items: center;
+            width: 100%;
             padding: 15px 0;
             background: white;
+            margin-top: 20px;
             border-top: 1px solid #eee;
-            border-radius: 6px;     /* 添加圆角 */
-            box-shadow: 0 -2px 15px rgba(0,0,0,0.05); /* 添加上阴影 */
-            max-width: 1200px;         /* 最大宽度限制 */
-            margin: 0 auto;           /* 水平居中 */
-            
         }
 
         .watermark-content {
@@ -174,13 +167,25 @@
         </div>
         
         <div class="controls">
+            <div class="controls">
+                <!-- 新增模型选择下拉菜单 -->
+                <select id="modelSelector" onchange="loadSelectedModel()" title="选择要查看的蛋白质模型">
+                    <option value="1e6b">1E6B - 基础模型</option>
+                    <option value="4ins">4INS - 胰岛素类似物</option>
+                    <option value="7rsa_alpha1">7RSA Alpha螺旋</option>
+                    <option value="7rsa_beta146_betasheet">7RSA Beta折叠片</option>
+                    <option value="7rsa_loop2_loop">7RSA 环状结构</option>
+                    <option value="7rsa_turn1_turn">7RSA 转角结构</option>
+                    <option value="my_structure">自定义结构</option>
+                </select>
             <button onclick="setDisplayMode('ribbon')">🎗️ 飘带模型</button>
             <button onclick="setDisplayMode('wireframe')">🔲 线棒模型</button>
             <button onclick="setDisplayMode('ballstick')">⚾ 棒球棍模型</button>
             <button onclick="setDisplayMode('spacefill')">🔵 空间填充</button>
             <button onclick="setDisplayMode('surface')">🟢 表面填充</button>
             <button onclick="setDisplayMode('hydrophobic')">🌊 亲疏水分布</button>
-            <!-- <button onclick="setDisplayMode('alpha')">🌀 阿尔法螺旋</button> -->
+
+            
         </div>
 
         <div class="status-bar" id="status">
@@ -303,13 +308,13 @@
             ballstick: `<strong>棒球棍模型 (Ball-and-stick)</strong><br>
             <b>定义：</b>原子用彩色球体表示（不同颜色对应不同元素），化学键用棍状连接。<br>
             <b>特点：</b>直观显示原子类型、键长和键角，平衡简洁性与信息量。`,
-            spacefill: `<strong>空间填充模型 (Space-filling Model)</strong><br>
+            spacefill: `<strong>空间填充模型 (Space-filling)</strong><br>
             <b>定义：</b>原子按范德华半径比例显示为球体，重叠部分体现原子间接触。<br>
             <b>特点：</b>最接近分子实际空间占位的表现方式，无法直接观察键的细节。`,
-            surface: `<strong>表面填充模型 (Surface Model)</strong><br>
+            surface: `<strong>表面填充模型 (Surface)</strong><br>
             <b>定义：</b>通过电子密度等值面或溶剂可及表面（SAS/SES）构建分子表面。<br>
             <b>特点：</b>显示分子轮廓和表面特征（如疏水/亲水区域），常用透明或彩色映射。`,
-            hydrophobic: `<strong>亲疏水分布模型 (Hydrophobic/Hydrophilic Model)</strong><br>
+            hydrophobic: `<strong>亲疏水分布模型 (Hydrophobic)</strong><br>
             <b>定义：</b>通过颜色或表面属性标记分子的亲水（极性）和疏水（非极性）区域。<br>
             <b>特点：</b>极性区域常用蓝色表示，疏水区域常用黄色表示，可结合表面或空间填充模型实现。`
         };
@@ -353,9 +358,17 @@
         }
 
         // 加载模型
-        async function loadModel() {
+        async function loadModel(modelName = '1e6b') {
             try {
-                const response = await fetch('https://files.rcsb.org/view/1E6B.pdb');
+                document.getElementById('status').innerHTML = `🔄 正在加载 ${modelName}...`;
+                viewer.removeAllModels();  // 清除旧模型
+                
+                const url = `https://suyecuni.github.io/BioStruct/models/${modelName}.pdb`;
+                const response = await fetch(url);
+                
+                if (!response.ok) throw new Error(`HTTP错误 ${response.status}`);
+                document.getElementById('status').innerHTML = "🔍 解析模型数据...";
+                
                 const data = await response.text();
                 viewer.addModel(data, "pdb");
                 setDisplayMode('ribbon'); // 默认显示飘带模型
@@ -363,22 +376,19 @@
                 viewer.render();
                 document.getElementById('status').textContent = "模型加载完成";
 
-                // // 默认显示飘带模型(额外加的)
-                // setTimeout(() => {
-                //     setDisplayMode('ribbon');
-                //     // 隐藏加载覆盖层
-                //     document.getElementById('loading-overlay').style.opacity = '0';
-                //     setTimeout(() => {
-                //         document.getElementById('loading-overlay').style.display = 'none';
-                //     });
-                // });
-
                 return true;
             } catch (error) {
                 document.getElementById('status').textContent = "模型加载失败：" + error.message;
                 console.error(error);
                 return false;
             }
+        }
+
+        // 新增选择器处理函数
+        function loadSelectedModel() {
+            const selector = document.getElementById('modelSelector');
+            const modelName = selector.value;
+            loadModel(modelName);
         }
 
         // 初始化执行
@@ -391,6 +401,8 @@
             document.getElementById('annotation-panel').innerHTML = annotationDict['ribbon'];
         });
     </script>
+
+    
 </body>
 </html>
 
@@ -408,6 +420,5 @@
             <div>西南大学生命科学学院 | 制作：兰婷、谢佳宏</div>
             <div>© Southwest University | Ting Lan, Jiahong Xie</div>
         </div>
-    </div>
-    
+    </div> 
 </div>
