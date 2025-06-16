@@ -1,424 +1,671 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
+    <!-- 设置文档字符编码为UTF-8，支持中文显示 -->
+    <meta charset="UTF-8">
+    <!-- 设置视口，使页面在不同设备上自适应 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 页面标题 -->
     <title>蛋白质可视化工具</title>
+    <!-- 引入3Dmol.js库，用于蛋白质3D可视化 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.1.0/3Dmol-min.js"></script>
     <style>
+        /* ========== CSS变量定义（主题颜色）========== */
+        /* 定义主色调为蓝色，次色调为绿色，背景色为浅灰色 */
         :root {
-            --primary: #2196F3;
-            --secondary: #4CAF50;
-            --background: #f8f9fa;
+            --primary: #2196F3;      /* 主色调（蓝色） */
+            --secondary: #4CAF50;   /* 次色调（绿色） */
+            --background: #f8f9fa;   /* 背景色（浅灰色） */
         }
 
+        /* ========== 全局样式重置 ========== */
+        /* 使用border-box盒模型，重置所有元素边距和内边距 */
+        * {
+            box-sizing: border-box;   /* 确保元素宽度包含padding和border */
+            margin: 0;               /* 清除默认外边距 */
+            padding: 0;              /* 清除默认内边距 */
+        }
+
+        /* ========== 页面主体样式 ========== */
+        /* 设置页面整体布局和基础样式 */
         body {
-            margin: 0;
-            padding: 20px;
-            font-family: 'Arial', sans-serif;
-            background: var(--background);
+            padding: 12px;           /* 页面内边距 */
+            font-family: 'Arial', 'PingFang SC', 'Microsoft YaHei', sans-serif; /* 字体优先顺序 */
+            background: var(--background); /* 使用定义好的背景色 */
+            color: #333;             /* 主文本颜色 */
         }
 
+        /* ========== 容器样式 ========== */
+        /* 主要内容容器（最大宽度1200px，水平居中） */
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
+            max-width: 1200px;       /* 最大宽度限制 */
+            margin: 0 auto;          /* 水平居中 */
+            padding: 0;               /* 清除内边距 */
         }
 
+        /* ========== 标题样式 ========== */
+        /* 页面主标题样式 */
+        h1 {
+            text-align: center;       /* 文本居中 */
+            margin: 10px 0 15px;      /* 上下边距 */
+            font-size: 1.5rem;        /* 字体大小 */
+            color: #1976D2;           /* 标题颜色（深蓝色） */
+        }
+
+        /* ========== 3D查看器样式 ========== */
+        /* 3D可视化区域样式 */
         #viewer3d {
-            width: 100%;
-            height: 600px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            background: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-            overflow: hidden;   
+            width: 100%;             /* 宽度100% */
+            height: 65vh;            /* 高度为视口高度的65% */
+            min-height: 280px;        /* 最小高度限制 */
+            max-height: 550px;        /* 最大高度限制 */
+            border-radius: 10px;      /* 圆角效果 */
+            background: white;       /* 白色背景 */
+            position: relative;      /* 相对定位（为内部绝对定位元素准备） */
+            overflow: hidden;        /* 隐藏溢出内容 */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); /* 添加阴影效果 */
+            margin-bottom: 10px;     /* 底部外边距 */
         }
 
-        .controls {
-            margin-top: 20px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 12px;
+        /* ========== 控制面板区域样式 ========== */
+        /* 包含选择器、按钮等控制元素 */
+        .controls-section {
+            display: flex;           /* 使用Flex布局 */
+            flex-direction: column;   /* 垂直排列 */
+            gap: 8px;                /* 元素间距 */
+            padding: 0 3px;          /* 左右内边距 */
         }
 
-        button {
-            padding: 12px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        button:hover {
-            background: #1976D2;
-            transform: scale(1.02);
-        }
-
-        button.active {
-            background: var(--secondary);
-            box-shadow: 0 2px 8px rgba(76,175,80,0.3);
-        }
-
-        .status-bar {
-            margin-top: 15px;
-            padding: 10px;
-            background: white;
-            border-radius: 6px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .annotation-panel {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            background: rgba(255,255,255,0.95);
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            padding: 16px 18px 12px 18px;
-            font-size: 12px;
-            color: #222;
-            max-width: 250px;
-            z-index: 10;
-            line-height: 1.7;
-        }
-        .annotation-panel ul {
-            margin: 8px 0 0 0;
-            padding-left: 18px;
-        }
-        .annotation-panel li {
-            margin-bottom: 6px;
-        }
-        .annotation-panel strong {
-            font-size: 16px;
-            color: #1976D2;
-        }
-
-
-        /* 底部水印样式 */
-        .footer-watermark {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            padding: 15px 0;
-            background: white;
-            margin-top: 20px;
-            border-top: 1px solid #eee;
-        }
-
-        .watermark-content {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            max-width: 800px;
-            width: 100%;
-            justify-content: center;
-        }
-            
-
-        .logo-container {
-            margin-right: 0;  /* 移除原有右边距 */
-            width: 70px;  /* 固定容器尺寸 */
-            height: 70px;
-            padding: 5px;  /* 内边距保护图标 */
-            background: rgba(255,255,255,0.9);  /* 半透明白底 */
-            border-radius: 8px;  /* 圆角匹配UI风格 */
-        }
-
-        .logo-container img {
-            width: 100%;  /* 充满容器 */
-            height: 100%;
-            object-fit: contain;  /* 等比例适配 */
-        }
-            
-
-
-        .text-container {
-            text-align: center;
-            font-size: 14px;
-            color: #555;
-            line-height: 1.5;
-        }
-
-        .text-container div:first-child {
-            font-weight: bold;
-            font-size: 16px;
-            color: #2196F3;
-            margin-bottom: 4px;
+        /* ========== 模型选择器样式 ========== */
+        /* 蛋白质模型选择下拉菜单 */
+        #modelSelector {
+            width: 100%;             /* 宽度100% */
+            padding: 12px;           /* 内边距 */
+            border: 2px solid var(--primary); /* 边框（主色调） */
+            border-radius: 8px;      /* 圆角 */
+            font-size: 0.95rem;      /* 字体大小 */
+            background: white;       /* 白色背景 */
+            margin: 0;               /* 清除外边距 */
         }
         
+        /* ========== 状态栏样式 ========== */
+        /* 显示模型加载状态等信息 */
+        .status-container {
+            display: flex;           /* 使用Flex布局 */
+            justify-content: center;  /* 内容水平居中 */
+            align-items: center;      /* 内容垂直居中 */
+            padding: 8px 12px;       /* 内边距 */
+            background: white;       /* 白色背景 */
+            border-radius: 10px;      /* 圆角 */
+            font-size: 0.9rem;       /* 字体大小 */
+            color: #444;              /* 文本颜色 */
+            margin: 5px 0;            /* 上下外边距 */
+            height: 45px;            /* 固定高度 */
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06); /* 轻微阴影 */
+        }
+        
+        /* 状态信息文字样式 */
+        #status-info {
+            font-weight: bold;       /* 粗体 */
+            color: var(--primary);    /* 主色调 */
+            font-size: 0.9rem;        /* 字体大小 */
+        }
+        
+        /* ========== 按钮区域样式 ========== */
+        /* 显示模式按钮网格布局 */
+        .buttons-grid {
+            display: grid;                                   /* 使用网格布局 */
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* 自适应列宽 */
+            gap: 8px;                                        /* 按钮间距 */
+            margin-bottom: 15px;                             /* 底部外边距 */
+        }
+
+        /* 按钮基础样式 */
+        button {
+            padding: 12px 5px;       /* 内边距 */
+            background: var(--primary); /* 主色调背景 */
+            color: white;            /* 白色文字 */
+            border: none;            /* 无边框 */
+            border-radius: 8px;       /* 圆角 */
+            cursor: pointer;         /* 鼠标指针样式 */
+            transition: all 0.15s;  /* 过渡效果 */
+            display: flex;           /* Flex布局 */
+            align-items: center;     /* 垂直居中 */
+            justify-content: center;  /* 水平居中 */
+            gap: 5px;               /* 图标与文字间距 */
+            font-size: 0.9rem;       /* 字体大小 */
+            font-weight: bold;       /* 粗体 */
+            height: 45px;            /* 固定高度 */
+        }
+
+        /* 按钮悬停效果 */
+        button:hover {
+            background: #1976D2;     /* 悬停时背景变深 */
+        }
+
+        /* 激活状态按钮样式 */
+        button.active {
+            background: var(--secondary); /* 使用次色调（绿色） */
+        }
+
+        /* ========== 注释面板样式 ========== */
+        /* 右上角的解释性面板 */
+        .annotation-panel {
+            position: absolute;      /* 绝对定位 */
+            top: 20px;               /* 距离顶部20px */
+            right: 20px;             /* 距离右侧20px */
+            background: rgba(255,255,255,0.98); /* 半透明白色背景 */
+            border-radius: 10px;     /* 圆角 */
+            box-shadow: 0 3px 12px rgba(0,0,0,0.15); /* 阴影 */
+            padding: 12px 15px;      /* 内边距 */
+            font-size: 0.85rem;      /* 字体大小 */
+            color: #333;            /* 文本颜色 */
+            max-width: 300px;        /* 最大宽度限制 */
+            z-index: 10;             /* 确保在最上层 */
+            line-height: 1.5;        /* 行高 */
+        }
+        
+        /* 注释面板标题样式 */
+        .annotation-panel strong {
+            font-size: 1rem;         /* 标题字体稍大 */
+            color: #1565C0;          /* 标题颜色（深蓝） */
+            display: block;          /* 块级元素 */
+            margin-bottom: 8px;      /* 底部边距 */
+            font-weight: 600;        /* 加粗 */
+        }
+
+        /* ========== 底部水印区域 ========== */
+        /* 页面底部的信息区域 */
+        .footer-watermark {
+            display: flex;           /* Flex布局 */
+            justify-content: center; /* 内容水平居中 */
+            align-items: center;     /* 内容垂直居中 */
+            width: 100%;             /* 宽度100% */
+            padding: 12px 0;         /* 上下内边距 */
+            background: white;       /* 白色背景 */
+            margin-top: 15px;        /* 与上方内容间距 */
+            border-top: 1px solid #eee; /* 顶部边框 */
+            max-width: 1200px;       /* 最大宽度 */
+            position: relative;      /* 相对定位 */
+            margin: 0 auto;          /* 水平居中 */
+            border-radius: 10px;     /* 圆角 */
+        }
+
+        /* 水印内容容器 */
+        .watermark-content {
+            display: flex;           /* Flex布局 */
+            align-items: center;     /* 垂直居中 */
+            gap: 15px;               /* 元素间距 */
+            max-width: 95%;          /* 最大宽度95% */
+            width: 100%;             /* 宽度100% */
+            justify-content: center; /* 内容水平居中 */
+        }
+
+        /* Logo容器样式 */
+        .logo-container {
+            width: 60px;             /* 宽度 */
+            height: 60px;            /* 高度 */
+            padding: 3px;            /* 内边距 */
+            background: rgba(255,255,255,0.9); /* 半透明白色背景 */
+            border-radius: 8px;      /* 圆角 */
+            flex-shrink: 0;          /* 防止缩小 */
+            display: flex;            /* Flex布局 */
+            align-items: center;     /* 垂直居中 */
+            justify-content: center;  /* 水平居中 */
+        }
+
+        /* Logo图片样式 */
+        .logo-container img {
+            width: 100%;             /* 宽度100% */
+            height: 100%;            /* 高度100% */
+            object-fit: contain;     /* 保持比例填充 */
+        }
+
+        /* 文本容器样式 */
+        .text-container {
+            text-align: center;       /* 文本居中 */
+            font-size: 0.8rem;        /* 字体大小 */
+            color: #555;             /* 文本颜色 */
+            line-height: 1.3;        /* 行高 */
+        }
+
+        /* 文本行样式 */
+        .text-container div {
+            white-space: nowrap;      /* 禁止换行 */
+            overflow: hidden;        /* 溢出隐藏 */
+            text-overflow: ellipsis; /* 溢出显示省略号 */
+        }
+
+        /* 第一行文本特殊样式 */
+        .text-container div:first-child {
+            font-weight: 600;        /* 加粗 */
+            font-size: 0.85rem;       /* 字体稍大 */
+            color: #2196F3;          /* 主色调 */
+            margin-bottom: 3px;      /* 底部边距 */
+        }
+
+        /* ========== 响应式设计 ========== */
+        /* 中等屏幕设备（平板等） */
+        @media (max-width: 768px) {
+            /* 页面主体调整 */
+            body {
+                padding: 8px;        /* 减少内边距 */
+            }
+            
+            /* 标题调整 */
+            h1 {
+                font-size: 1.25rem;  /* 字体稍小 */
+                margin: 8px 0 12px;  /* 调整边距 */
+            }
+            
+            /* 3D查看器调整 */
+            #viewer3d {
+                height: 50vh;        /* 高度调整为50%视口 */
+                min-height: 230px;   /* 最小高度降低 */
+            }
+            
+            /* 控制面板间距调整 */
+            .controls-section {
+                gap: 6px;            /* 减少间距 */
+            }
+            
+            /* 选择器调整 */
+            #modelSelector {
+                padding: 10px;       /* 减少内边距 */
+                font-size: 0.85rem;  /* 字体稍小 */
+            }
+            
+            /* 按钮网格布局调整 */
+            .buttons-grid {
+                grid-template-columns: repeat(2, 1fr); /* 改为两列布局 */
+                gap: 6px;            /* 减少间距 */
+            }
+            
+            /* 按钮调整 */
+            button {
+                height: 40px;        /* 高度降低 */
+                padding: 0 4px;      /* 调整内边距 */
+                font-size: 0.8rem;   /* 字体稍小 */
+            }
+            
+            /* 注释面板调整（移动端） */
+            .annotation-panel {
+                max-width: 40%;      /* 宽度限制 */
+                padding: 8px 10px;   /* 调整内边距 */
+                font-size: 0.7rem;   /* 字体更小 */
+                top: 8px;            /* 顶部位置调整 */
+                right: 8px;          /* 右侧位置调整 */
+                line-height: 1.4;    /* 调整行高 */
+                background: rgba(255,255,255,0.5);  /* 更高透明度 */
+            }
+            
+            /* 注释标题调整 */
+            .annotation-panel strong {
+                font-size: 0.8rem;   /* 字体更小 */
+                margin-bottom: 5px;  /* 底部边距调整 */
+            }
+            
+            /* 状态栏调整 */
+            .status-container {
+                margin: 4px 0;       /* 边距调整 */
+                padding: 6px 10px;   /* 内边距调整 */
+                height: 40px;        /* 高度降低 */
+            }
+            
+            /* 状态信息字体调整 */
+            #status-info {
+                font-size: 0.85rem;  /* 字体稍小 */
+            }
+            
+            /* 水印区域调整 */
+            .footer-watermark {
+                padding: 10px 0;     /* 调整内边距 */
+                margin-top: 12px;    /* 顶部边距调整 */
+            }
+            
+            /* 水印内容调整 */
+            .watermark-content {
+                gap: 10px;           /* 减少间距 */
+            }
+            
+            /* Logo容器调整 */
+            .logo-container {
+                width: 50px;         /* 宽度缩小 */
+                height: 50px;        /* 高度缩小 */
+            }
+            
+            /* 文本容器调整 */
+            .text-container {
+                font-size: 0.75rem;  /* 字体缩小 */
+            }
+            
+            /* 第一行文本调整 */
+            .text-container div:first-child {
+                font-size: 0.8rem;   /* 字体大小 */
+            }
+        }
+        
+        /* 小屏幕设备（手机等） */
+        @media (max-width: 480px) {
+            /* 标题调整 */
+            h1 {
+                font-size: 1.15rem;  /* 进一步缩小 */
+            }
+            
+            /* 3D查看器调整 */
+            #viewer3d {
+                height: 45vh;       /* 高度进一步降低 */
+            }
+            
+            /* 按钮调整 */
+            button {
+                font-size: 0.75rem;  /* 字体缩小 */
+                height: 38px;        /* 高度稍小 */
+            }
+            
+            /* 注释面板调整（超小屏幕） */
+            .annotation-panel {
+                max-width: 45%;      /* 宽度稍大 */
+                padding: 7px 8px;   /* 调整内边距 */
+                font-size: 0.65rem;   /* 字体更小 */
+            }
+            
+            /* 注释标题调整 */
+            .annotation-panel strong {
+                font-size: 0.75rem;   /* 字体大小 */
+            }
+            
+            /* 水印区域调整 */
+            .footer-watermark {
+                padding: 8px 0;     /* 调整内边距 */
+            }
+            
+            /* 文本容器内div调整 */
+            .text-container div {
+                max-width: 85vw;    /* 宽度限制 */
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- 主容器 -->
     <div class="container">
+        <!-- 页面标题 -->
         <h1>蛋白质可视化工具</h1>
-
         
+        <!-- 3D可视化区域 -->
         <div id="viewer3d">
+            <!-- 注释面板 - 固定在右上角 -->
+            
+            <!-- 初始面板信息 -->
             <div class="annotation-panel" id="annotation-panel">
-                <!-- 注释信息将由JS动态填充 -->
+                <strong>飘带模型 (Ribbon)</strong>
+                <b>定义：</b>用扁平飘带表示二级结构（α螺旋为螺旋状，β折叠为箭头）。
+                <b>特点：</b>忽略原子细节，突出蛋白质骨架的折叠模式。
             </div>
         </div>
         
-        <div class="controls">
-            <div class="controls">
-                <!-- 新增模型选择下拉菜单 -->
-                <select id="modelSelector" onchange="loadSelectedModel()" title="选择要查看的蛋白质模型">
-                    <option value="1e6b">1E6B - 基础模型</option>
-                    <option value="4ins">4INS - 胰岛素类似物</option>
-                    <option value="7rsa_alpha1">7RSA Alpha螺旋</option>
-                    <option value="7rsa_beta146_betasheet">7RSA Beta折叠片</option>
-                    <option value="7rsa_loop2_loop">7RSA 环状结构</option>
-                    <option value="7rsa_turn1_turn">7RSA 转角结构</option>
-                    <option value="my_structure">自定义结构</option>
-                </select>
-            <button onclick="setDisplayMode('ribbon')">🎗️ 飘带模型</button>
-            <button onclick="setDisplayMode('wireframe')">🔲 线棒模型</button>
-            <button onclick="setDisplayMode('ballstick')">⚾ 棒球棍模型</button>
-            <button onclick="setDisplayMode('spacefill')">🔵 空间填充</button>
-            <button onclick="setDisplayMode('surface')">🟢 表面填充</button>
-            <button onclick="setDisplayMode('hydrophobic')">🌊 亲疏水分布</button>
-
+        <!-- 控制面板区域 -->
+        <div class="controls-section">
+            <!-- 蛋白质模型选择器 -->
+            <select id="modelSelector" onchange="loadSelectedModel()" title="选择要查看的蛋白质模型">
+                <option value="1e6b" selected>1E6B - 基础模型</option>
+                <option value="4ins">4INS - 胰岛素类似物</option>
+                <option value="7rsa_alpha1">7RSA Alpha螺旋</option>
+                <option value="7rsa_beta146_betasheet">7RSA Beta折叠片</option>
+                <option value="7rsa_loop2_loop">7RSA 环状结构</option>
+                <option value="7rsa_turn1_turn">7RSA 转角结构</option>
+                <option value="my_structure">自定义结构</option>
+            </select>
             
-        </div>
-
-        <div class="status-bar" id="status">
-            正在加载模型...
+            <!-- 状态栏 -->
+            <div class="status-container">
+                <span id="status-info">模型加载完成</span>
+            </div>
+            
+            <!-- 显示模式按钮区域 -->
+            <div class="buttons-grid">
+                <button onclick="setDisplayMode('ribbon')" class="active">🎗️ 飘带模型</button>
+                <button onclick="setDisplayMode('wireframe')">🔲 线棒模型</button>
+                <button onclick="setDisplayMode('ballstick')">⚾ 棒球棍模型</button>
+                <button onclick="setDisplayMode('spacefill')">🔵 空间填充</button>
+                <button onclick="setDisplayMode('surface')">🟢 表面填充</button>
+                <button onclick="setDisplayMode('hydrophobic')">🌊 亲疏水分布</button>
+            </div>
         </div>
     </div>
-
+    
+    <!-- 底部水印区域 -->
+    <div class="footer-watermark">
+        <div class="watermark-content">
+            <!-- Logo容器 -->
+            <div class="logo-container">
+                <!-- BioStruct Logo -->
+                <img src="https://suyecuni.github.io/BioStruct/images/logo.png" alt="BioStruct Logo">
+            </div>
+            <!-- 文本信息 -->
+            <div class="text-container">
+                <div>BioStruct展示平台</div>
+                <div>西南大学生命科学学院 | 制作：兰婷、谢佳宏</div>
+                <div>©Southwest University | Ting Lan, Jiahong Xie</div>
+            </div>
+        </div>
+    </div>
+    
     <script>
-        // 初始化3D查看器
+        // ========== JavaScript代码实现功能 ==========
+        
+        // 初始化3D分子查看器
         const viewer = $3Dmol.createViewer("viewer3d", {
-            background: "#ffffff",
-            defaultcolors: $3Dmol.elementColors.JMol
+            background: "#ffffff",            // 设置白色背景
+            defaultcolors: $3Dmol.elementColors.JMol // 使用JMOL配色方案
         });
-
-        // 显示模式配置
+        
+        // 定义不同的显示模式及其配置
         const displayModes = {
+            // 飘带模型配置
             ribbon: {
                 style: { 
                     cartoon: { 
+                        // 颜色函数：根据氨基酸残基位置返回不同颜色
                         colorfunc: function(atom) {
-                            // 按残基区间分色
+                            // 定义不同残基区间段的颜色
                             const colorBlocks = [
-                                {start: 1, end: 40, color: '#55aa7f'},   // 绿色
-                                {start: 41, end: 80, color: '#d2b777'},  // 黄色
-                                {start: 81, end: 120, color: '#ff8b8d'}, // 粉色
-                                {start: 121, end: 160, color: '#af8aff'},// 紫色
-                                {start: 161, end: 9999, color: '#55aaff'}// 灰蓝
+                                {start: 1, end: 40, color: '#55aa7f'},  // 绿色区间
+                                {start: 41, end: 80, color: '#d2b777'}, // 棕色区间
+                                {start: 81, end: 120, color: '#ff8b8d'},// 粉色区间
+                                {start: 121, end: 160, color: '#af8aff'},// 紫色区间
+                                {start: 161, end: 9999, color: '#55aaff'} // 蓝色区间
                             ];
-                            const resi = atom.resi;
+                            const resi = atom.resi; // 当前残基位置
+                            // 查找当前残基所属的颜色区间
                             for (let block of colorBlocks) {
                                 if (resi >= block.start && resi <= block.end) return block.color;
                             }
-                            return '#B0B8C1';
+                            return '#B0B8C1'; // 默认灰色
                         },
-                        thickness: 0.6,
-                        arrows: true
+                        thickness: 0.6,  // 飘带厚度
+                        arrows: true      // 显示Beta折叠箭头
                     }
                 },
-                label: "飘带模型"
+                label: "飘带模型" // 显示模式的标签
             },
+            // 线棒模型配置
             wireframe: {
                 style: { 
-                    stick: { radius: 0.12 },
-                    sphere: { radius: 0, opacity: 0 }
+                    stick: { radius: 0.12 },          // 化学键半径
+                    sphere: { radius: 0, opacity: 0 } // 隐藏原子球体
                 },
                 label: "线棒模型"
             },
+            // 棒球棍模型配置
             ballstick: {
                 style: { 
-                    stick: { radius: 0.12 },
-                    sphere: { radius: 0.32, opacity: 0.9 }
+                    stick: { radius: 0.12 },          // 棍状化学键半径
+                    sphere: { radius: 0.32, opacity: 0.9 } // 原子球体大小和透明度
                 },
                 label: "棒球棍模型"
             },
+            // 空间填充模型配置
             spacefill: {
-                style: { sphere: { scale: 0.6 } },
-                surface: { type: $3Dmol.SurfaceType.VDW, opts: { opacity: 0.85 } },
-                label: "空间填充模型"
+                style: { sphere: { scale: 0.6 } },    // 球体大小比例
+                surface: { type: $3Dmol.SurfaceType.VDW, opts: { opacity: 0.85 } } // 表面渲染配置
             },
+            // 表面填充模型配置
             surface: {
-                style: {},
-                surface: null, // 用自定义逻辑
+                style: {},  // 不应用特定样式
+                surface: null,
                 label: "表面填充模型"
             },
+            // 亲疏水分布模型配置
             hydrophobic: {
-                style: (hydrophobic) => ({
-                    [hydrophobic]: { sphere: { color: "#FFD700", scale: 0.6 } },
-                    default: { sphere: { color: "#4169E1", scale: 0.6 } }
+                style: () => ({
+                    hydrophobic: { sphere: { color: "#FFD700", scale: 0.6 } }, // 疏水区黄色
+                    default: { sphere: { color: "#4169E1", scale: 0.6 } }      // 亲水区蓝色
                 }),
                 surface: {
-                    type: $3Dmol.SurfaceType.VDW,
+                    type: $3Dmol.SurfaceType.VDW, // 表面类型
                     opts: { 
-                        opacity: 0.7,
+                        opacity: 0.7, // 表面透明度
+                        // 表面颜色函数：根据氨基酸类型决定颜色
                         colorfunc: (atom) => hydrophobicResidues.includes(atom.resn) ? "#FFD700" : "#4169E1"
                     }
                 },
                 label: "亲疏水分布"
-            },
-            alpha: {
-                style: { 
-                    cartoon: { 
-                        color: "#FF6B6B",
-                        thickness: 1.2,
-                        opacity: 0.9,
-                        arrows: true,
-                        ribbon: true,
-                        smoothness: 1
-                    }
-                },
-                label: "阿尔法螺旋",
-                filter: (atom) => atom.ss === 'H' && atom.resi >= 5 && atom.resi <= 15 // 仅显示5-15号残基的α螺旋
-            },
-            beta: {
-                style: { 
-                    cartoon: { 
-                        color: "#4ECDC4",
-                        thickness: 1.2,
-                        opacity: 0.9,
-                        arrows: true,
-                        ribbon: true,
-                        smoothness: 1
-                    }
-                },
-                label: "贝塔折叠",
-                filter: (atom) => atom.ss === 'S'
             }
         };
-
-        // 常量定义
+        
+        // 定义疏水性氨基酸列表
         const hydrophobicResidues = ["ALA","VAL","LEU","ILE","MET","PHE","TRP","PRO"];
-
-        // 注释信息字典
+        
+        // 每种显示模式的注释信息
         const annotationDict = {
-            ribbon: `<strong>飘带模型 (Ribbon)</strong><br>
-            <b>定义：</b>用扁平飘带表示蛋白质二级结构（α螺旋为螺旋状，β折叠为箭头）。<br>
-            <b>特点：</b>忽略原子细节，突出蛋白质骨架的折叠模式，常用颜色区分不同结构域或链。`,
-            wireframe: `<strong>线棒模型 (Wireframe)</strong><br>
-            <b>定义：</b>用线条表示化学键，原子用线条的交点（节点）表示，不显示原子大小。<br>
-            <b>特点：</b>结构简洁，突出分子骨架和键的走向，不区分原子类型。`,
-            ballstick: `<strong>棒球棍模型 (Ball-and-stick)</strong><br>
-            <b>定义：</b>原子用彩色球体表示（不同颜色对应不同元素），化学键用棍状连接。<br>
-            <b>特点：</b>直观显示原子类型、键长和键角，平衡简洁性与信息量。`,
-            spacefill: `<strong>空间填充模型 (Space-filling)</strong><br>
-            <b>定义：</b>原子按范德华半径比例显示为球体，重叠部分体现原子间接触。<br>
-            <b>特点：</b>最接近分子实际空间占位的表现方式，无法直接观察键的细节。`,
-            surface: `<strong>表面填充模型 (Surface)</strong><br>
-            <b>定义：</b>通过电子密度等值面或溶剂可及表面（SAS/SES）构建分子表面。<br>
-            <b>特点：</b>显示分子轮廓和表面特征（如疏水/亲水区域），常用透明或彩色映射。`,
-            hydrophobic: `<strong>亲疏水分布模型 (Hydrophobic)</strong><br>
-            <b>定义：</b>通过颜色或表面属性标记分子的亲水（极性）和疏水（非极性）区域。<br>
-            <b>特点：</b>极性区域常用蓝色表示，疏水区域常用黄色表示，可结合表面或空间填充模型实现。`
+            ribbon: `<strong>飘带模型 (Ribbon)</strong>
+            <b>定义：</b>用扁平飘带表示二级结构（α螺旋为螺旋状，β折叠为箭头）。
+            <b>特点：</b>忽略原子细节，突出蛋白质骨架的折叠模式。`,
+            wireframe: `<strong>线棒模型 (Wireframe)</strong>
+            <b>定义：</b>用线条表示化学键，原子用线条的节点表示。
+            <b>特点：</b>结构简洁，突出分子骨架和键的走向。`,
+            ballstick: `<strong>棒球棍模型 (Ball-and-stick)</strong>
+            <b>定义：</b>原子用彩色球体表示，化学键用棍状连接。
+            <b>特点：</b>直观显示原子类型、键长和键角。`,
+            spacefill: `<strong>空间填充模型 (Space-filling)</strong>
+            <b>定义：</b>原子按范德华半径比例显示为球体。
+            <b>特点：</b>最接近分子实际空间占位的表现方式。`,
+            surface: `<strong>表面填充模型 (Surface)</strong>
+            <b>极定义：</b>通过电子密度等值面或溶剂可及表面构建分子表面。
+            <b>特点：</b>显示分子轮廓和表面特征。`,
+            hydrophobic: `<strong>亲疏水分布 (Hydrophobic)</strong>
+            <b>定义：</b>通过颜色标记分子的亲水（极性）和疏水（非极性）区域。
+            <b>特点：</b>极性区域常用蓝色表示，疏水区域常用黄色表示。`
         };
-
-        // 核心显示函数
+        
+        // 功能：设置当前显示模式
         async function setDisplayMode(mode) {
+            // 清除现有的表面渲染
             viewer.removeAllSurfaces();
+            // 重置样式
             viewer.setStyle({}, {});
             const config = displayModes[mode];
             if (!config) return;
-
-            // 应用组合过滤条件
-            viewer.setStyle({
-                ...(config.filter ? { ss: config.filter } : {}),
-                resi: { $between: [5, 15] } // 精确限定残基范围
-            }, config.style);
+            
+            // 应用样式配置
+            viewer.setStyle({}, config.style);
+            
+            // 特殊处理亲疏水模式
             if (mode === 'hydrophobic') {
-                viewer.setStyle({ resn: hydrophobicResidues }, config.style(hydrophobicResidues)[hydrophobicResidues]);
+                // 设置疏水区域样式
+                viewer.setStyle({ resn: hydrophobicResidues }, config.style().hydrophobic);
+                // 设置其他区域样式
                 viewer.setStyle({ resn: { $not: hydrophobicResidues } }, config.style().default);
+                // 添加表面渲染
                 viewer.addSurface(config.surface.type, config.surface.opts);
             } else if (mode === 'surface') {
+                // 表面填充模型特定的表面设置
                 viewer.addSurface($3Dmol.SurfaceType.VDW, {
-                    opacity: 0.92,
-                    color: 'spectrum',
-                    smooth: 16,
-                    probeRadius: 2.2
+                    opacity: 0.92,         // 透明度
+                    color: 'spectrum',     // 颜色谱
+                    smooth: 16,            // 平滑度
+                    probeRadius: 2.2        // 探针半径
                 });
             } else {
-                viewer.setStyle({}, config.style);
+                // 添加其他模式的表面渲染
                 if (config.surface) {
                     viewer.addSurface(config.surface.type, config.surface.opts);
                 }
             }
-
-            document.getElementById('status').textContent = `当前模式：${config.label}`;
+            
+            // 更新状态栏信息
+            document.getElementById('status-info').textContent = `当前模式：${config.label}`;
+            // 更新按钮激活状态
             document.querySelectorAll('button').forEach(btn => {
                 btn.classList.toggle('active', btn.textContent.includes(config.label));
             });
+            
+            // 更新注释面板内容
             document.getElementById('annotation-panel').innerHTML = annotationDict[mode] || '';
+            // 渲染查看器
             viewer.render();
         }
-
-        // 加载模型
+        
+        // 功能：加载蛋白质模型
         async function loadModel(modelName = '1e6b') {
             try {
-                document.getElementById('status').innerHTML = `🔄 正在加载 ${modelName}...`;
-                viewer.removeAllModels();  // 清除旧模型
                 
+                // 更新加载状态
+                document.getElementById('status-info').textContent = "正在加载模型...";
+                // 清除现有模型
+                viewer.removeAllModels();
+                
+                // 构造模型URL
                 const url = `https://suyecuni.github.io/BioStruct/models/${modelName}.pdb`;
+                // 获取模型文件
                 const response = await fetch(url);
                 
-                if (!response.ok) throw new Error(`HTTP错误 ${response.status}`);
-                document.getElementById('status').innerHTML = "🔍 解析模型数据...";
+                // 错误处理
+                if (!response.ok) throw new Error(`加载模型失败`);
+                // 更新解析状态
+                document.getElementById('status-info').textContent = "解析模型数据...";
                 
+                // 获取文本数据
                 const data = await response.text();
+                // 向查看器添加模型
                 viewer.addModel(data, "pdb");
-                setDisplayMode('ribbon'); // 默认显示飘带模型
+                // 设置默认显示模式
+                setDisplayMode('ribbon');
+                // 调整视图到合适大小
                 viewer.zoomTo();
+                // 渲染查看器
                 viewer.render();
-                document.getElementById('status').textContent = "模型加载完成";
-
+                // 更新加载完成状态
+                document.getElementById('status-info').textContent = "模型加载完成";
+                
                 return true;
             } catch (error) {
-                document.getElementById('status').textContent = "模型加载失败：" + error.message;
-                console.error(error);
+                // 错误处理
+                document.getElementById('status-info').textContent = "模型加载失败：" + error.message;
                 return false;
             }
         }
-
-        // 新增选择器处理函数
+        
+        // 功能：处理模型选择变化
         function loadSelectedModel() {
             const selector = document.getElementById('modelSelector');
             const modelName = selector.value;
             loadModel(modelName);
         }
-
-        // 初始化执行
-        loadModel();
-        viewer.enableZoom(true);
-        viewer.enablePan(true);
-
-        // 初始化时默认显示ribbon注释
+        
+        // 页面初始化完成后执行的操作
         document.addEventListener('DOMContentLoaded', function() {
+            // 加载默认模型
+            loadModel();
+            // 启用缩放
+            viewer.enableZoom(true);
+            // 启用平移
+            viewer.enablePan(true);
+            // 设置初始注释内容
             document.getElementById('annotation-panel').innerHTML = annotationDict['ribbon'];
         });
     </script>
-
-    
 </body>
 </html>
-
-
-<!-- 底部水印区域 -->
-<div class="footer-watermark">
-    <div class="watermark-content">
-        <div class="logo-container">
-            <div class="logo">
-                 <img src="images/logo.png" alt="BioStruct Logo">
-            </div>
-        </div>
-        <div class="text-container">
-            <div>BioStruct 展示平台</div>
-            <div>西南大学生命科学学院 | 制作：兰婷、谢佳宏</div>
-            <div>© Southwest University | Ting Lan, Jiahong Xie</div>
-        </div>
-    </div> 
-</div>
