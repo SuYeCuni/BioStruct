@@ -1,550 +1,845 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <!-- 设置文档字符编码为UTF-8，支持中文显示 -->
     <meta charset="UTF-8">
-    <!-- 设置视口，使页面在不同设备上自适应 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- 页面标题 -->
     <title>蛋白质可视化工具</title>
-    <!-- 引入3Dmol.js库，用于蛋白质3D可视化 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.1.0/3Dmol-min.js"></script>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <style>
-        /* ========== CSS变量定义（主题颜色）========== */
-        /* 定义主色调为蓝色，次色调为绿色，背景色为浅灰色 */
         :root {
-            --primary: #2196F3;      /* 主色调（蓝色） */
-            --secondary: #4CAF50;   /* 次色调（绿色） */
-            --background: #f8f9fa;   /* 背景色（浅灰色） */
+            --primary: #2196F3;
+            --secondary: #4CAF50;
+            --background: #f8f9fa;
+            --error-bg: #f8d7da;
+            --error-text: #721c24;
         }
 
-        /* ========== 全局样式重置 ========== */
-        /* 使用border-box盒模型，重置所有元素边距和内边距 */
-        * {
-            box-sizing: border-box;   /* 确保元素宽度包含padding和border */
-            margin: 0;               /* 清除默认外边距 */
-            padding: 0;              /* 清除默认内边距 */
-        }
-
-        /* ========== 页面主体样式 ========== */
-        /* 设置页面整体布局和基础样式 */
         body {
-            padding: 12px;           /* 页面内边距 */
-            font-family: 'Arial', 'PingFang SC', 'Microsoft YaHei', sans-serif; /* 字体优先顺序 */
-            background: var(--background); /* 使用定义好的背景色 */
-            color: #333;             /* 主文本颜色 */
+            margin: 0;
+            padding: 20px;
+            font-family: 'Arial', sans-serif;
+            background: var(--background);
+            color: #333;
         }
 
-        /* ========== 容器样式 ========== */
-        /* 主要内容容器（最大宽度1200px，水平居中） */
         .container {
-            max-width: 1200px;       /* 最大宽度限制 */
-            margin: 0 auto;          /* 水平居中 */
-            padding: 0;               /* 清除内边距 */
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
-        /* ========== 标题样式 ========== */
-        /* 页面主标题样式 */
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
         h1 {
-            text-align: center;       /* 文本居中 */
-            margin: 10px 0 15px;      /* 上下边距 */
-            font-size: 1.5rem;        /* 字体大小 */
-            color: #1976D2;           /* 标题颜色（深蓝色） */
+            color: #2c3e50;
+            margin-bottom: 5px;
+            font-size: 2.2rem;
         }
 
-        /* ========== 3D查看器样式 ========== */
-        /* 3D可视化区域样式 */
+        .subtitle {
+            color: gray;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+
         #viewer3d {
-            width: 100%;             /* 宽度100% */
-            height: 65vh;            /* 高度为视口高度的65% */
-            min-height: 280px;        /* 最小高度限制 */
-            max-height: 550px;        /* 最大高度限制 */
-            border-radius: 10px;      /* 圆角效果 */
-            background: white;       /* 白色背景 */
-            position: relative;      /* 相对定位（为内部绝对定位元素准备） */
-            overflow: hidden;        /* 隐藏溢出内容 */
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1); /* 添加阴影效果 */
-            margin-bottom: 10px;     /* 底部外边距 */
+            width: 100%;
+            height: 600px;
+            border-radius: 10px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.12);
+            background: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #e0e0e0;
         }
 
-        /* ========== 控制面板区域样式 ========== */
-        /* 包含选择器、按钮等控制元素 */
-        .controls-section {
-            display: flex;           /* 使用Flex布局 */
-            flex-direction: column;   /* 垂直排列 */
-            gap: 8px;                /* 元素间距 */
-            padding: 0 3px;          /* 左右内边距 */
+        #model-viewer-container {
+            width: 100%;
+            height: 600px;
+            display: none;
+            border-radius: 10px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.12);
+            background: white;
+            border: 1px solid #e0e0e0;
+            position: relative;
         }
 
-        /* ========== 模型选择器样式 ========== */
-        /* 蛋白质模型选择下拉菜单 */
-        #modelSelector {
-            width: 100%;             /* 宽度100% */
-            padding: 12px;           /* 内边距 */
-            border: 2px solid var(--primary); /* 边框（主色调） */
-            border-radius: 8px;      /* 圆角 */
-            font-size: 0.95rem;      /* 字体大小 */
-            background: white;       /* 白色背景 */
-            margin: 0;               /* 清除外边距 */
-        }
-        
-        /* ========== 状态栏样式 ========== */
-        /* 显示模型加载状态等信息 */
-        .status-container {
-            display: flex;           /* 使用Flex布局 */
-            justify-content: center;  /* 内容水平居中 */
-            align-items: center;      /* 内容垂直居中 */
-            padding: 8px 12px;       /* 内边距 */
-            background: white;       /* 白色背景 */
-            border-radius: 10px;      /* 圆角 */
-            font-size: 0.9rem;       /* 字体大小 */
-            color: #444;              /* 文本颜色 */
-            margin: 5px 0;            /* 上下外边距 */
-            height: 45px;            /* 固定高度 */
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06); /* 轻微阴影 */
-        }
-        
-        /* 状态信息文字样式 */
-        #status-info {
-            font-weight: bold;       /* 粗体 */
-            color: var(--primary);    /* 主色调 */
-            font-size: 0.9rem;        /* 字体大小 */
-        }
-        
-        /* ========== 按钮区域样式 ========== */
-        /* 显示模式按钮网格布局 */
-        .buttons-grid {
-            display: grid;                                   /* 使用网格布局 */
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* 自适应列宽 */
-            gap: 8px;                                        /* 按钮间距 */
-            margin-bottom: 15px;                             /* 底部外边距 */
+        model-viewer {
+            width: 100%;
+            height: 100%;
         }
 
-        /* 按钮基础样式 */
+        .controls {
+            margin-top: 25px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .control-group {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        }
+
+        .control-group h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         button {
-            padding: 12px 5px;       /* 内边距 */
-            background: var(--primary); /* 主色调背景 */
-            color: white;            /* 白色文字 */
-            border: none;            /* 无边框 */
-            border-radius: 8px;       /* 圆角 */
-            cursor: pointer;         /* 鼠标指针样式 */
-            transition: all 0.15s;  /* 过渡效果 */
-            display: flex;           /* Flex布局 */
-            align-items: center;     /* 垂直居中 */
-            justify-content: center;  /* 水平居中 */
-            gap: 5px;               /* 图标与文字间距 */
-            font-size: 0.9rem;       /* 字体大小 */
-            font-weight: bold;       /* 粗体 */
-            height: 45px;            /* 固定高度 */
+            padding: 13px 15px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+            font-size: 1rem;
+            width: 100%;
+            text-align: left;
+            box-shadow: 0 2px 5px rgba(33, 150, 243, 0.3);
         }
 
-        /* 按钮悬停效果 */
         button:hover {
-            background: #1976D2;     /* 悬停时背景变深 */
+            background: #1976D2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(33, 150, 243, 0.4);
         }
 
-        /* 激活状态按钮样式 */
         button.active {
-            background: var(--secondary); /* 使用次色调（绿色） */
+            background: var(--secondary);
+            box-shadow: 0 2px 8px rgba(76,175,80,0.4);
         }
 
-        /* ========== 注释面板样式 ========== */
-        /* 右上角的解释性面板 */
+        .status-bar {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 4px solid var(--primary);
+        }
+
         .annotation-panel {
-            position: absolute;      /* 绝对定位 */
-            top: 20px;               /* 距离顶部20px */
-            right: 20px;             /* 距离右侧20px */
-            background: rgba(255,255,255,0.98); /* 半透明白色背景 */
-            border-radius: 10px;     /* 圆角 */
-            box-shadow: 0 3px 12px rgba(0,0,0,0.15); /* 阴影 */
-            padding: 12px 15px;      /* 内边距 */
-            font-size: 0.85rem;      /* 字体大小 */
-            color: #333;            /* 文本颜色 */
-            max-width: 300px;        /* 最大宽度限制 */
-            z-index: 10;             /* 确保在最上层 */
-            line-height: 1.5;        /* 行高 */
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.97);
+            border-radius: 10px;
+            padding: 20px;
+            font-size: 14px;
+            color: #333;
+            max-width: 280px;
+            z-index: 10;
+            line-height: 1.7;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border: 1px solid #eee;
         }
         
-        /* 注释面板标题样式 */
+        .annotation-panel ul {
+            margin: 10px 0 0 0;
+            padding-left: 20px;
+        }
+        
+        .annotation-panel li {
+            margin-bottom: 8px;
+        }
+        
         .annotation-panel strong {
-            font-size: 1rem;         /* 标题字体稍大 */
-            color: #1565C0;          /* 标题颜色（深蓝） */
-            display: block;          /* 块级元素 */
-            margin-bottom: 8px;      /* 底部边距 */
-            font-weight: 600;        /* 加粗 */
+            font-size: 18px;
+            color: #1976D2;
+            display: block;
+            margin-bottom: 10px;
         }
 
-        /* ========== 底部水印区域 ========== */
-        /* 页面底部的信息区域 */
-        .footer-watermark {
-            display: flex;           /* Flex布局 */
-            justify-content: center; /* 内容水平居中 */
-            align-items: center;     /* 内容垂直居中 */
-            width: 100%;             /* 宽度100% */
-            padding: 12px 0;         /* 上下内边距 */
-            background: white;       /* 白色背景 */
-            margin-top: 15px;        /* 与上方内容间距 */
-            border-top: 1px solid #eee; /* 顶部边框 */
-            max-width: 1200px;       /* 最大宽度 */
-            position: relative;      /* 相对定位 */
-            margin: 0 auto;          /* 水平居中 */
-            border-radius: 10px;     /* 圆角 */
-        }
-
-        /* 水印内容容器 */
-        .watermark-content {
-            display: flex;           /* Flex布局 */
-            align-items: center;     /* 垂直居中 */
-            gap: 15px;               /* 元素间距 */
-            max-width: 95%;          /* 最大宽度95% */
-            width: 100%;             /* 宽度100% */
-            justify-content: center; /* 内容水平居中 */
-        }
-
-        /* Logo容器样式 */
-        .logo-container {
-            width: 60px;             /* 宽度 */
-            height: 60px;            /* 高度 */
-            padding: 3px;            /* 内边距 */
-            background: rgba(255,255,255,0.9); /* 半透明白色背景 */
-            border-radius: 8px;      /* 圆角 */
-            flex-shrink: 0;          /* 防止缩小 */
-            display: flex;            /* Flex布局 */
-            align-items: center;     /* 垂直居中 */
-            justify-content: center;  /* 水平居中 */
-        }
-
-        /* Logo图片样式 */
-        .logo-container img {
-            width: 100%;             /* 宽度100% */
-            height: 100%;            /* 高度100% */
-            object-fit: contain;     /* 保持比例填充 */
-        }
-
-        /* 文本容器样式 */
-        .text-container {
-            text-align: center;       /* 文本居中 */
-            font-size: 0.8rem;        /* 字体大小 */
-            color: #555;             /* 文本颜色 */
-            line-height: 1.3;        /* 行高 */
-        }
-
-        /* 文本行样式 */
-        .text-container div {
-            white-space: nowrap;      /* 禁止换行 */
-            overflow: hidden;        /* 溢出隐藏 */
-            text-overflow: ellipsis; /* 溢出显示省略号 */
-        }
-
-        /* 第一行文本特殊样式 */
-        .text-container div:first-child {
-            font-weight: 600;        /* 加粗 */
-            font-size: 1rem;       /* 字体稍大 */
-            color: #2196F3;          /* 主色调 */
-            margin-bottom: 3px;      /* 底部边距 */
-        }
-
-        /* ========== 响应式设计 ========== */
-        /* 中等屏幕设备（平板等） */
-        @media (max-width: 768px) {
-            /* 页面主体调整 */
-            body {
-                padding: 8px;        /* 减少内边距 */
-            }
-            
-            /* 标题调整 */
-            h1 {
-                font-size: 1.25rem;  /* 字体稍小 */
-                margin: 8px 0 12px;  /* 调整边距 */
-            }
-            
-            /* 3D查看器调整 */
-            #viewer3d {
-                height: 50vh;        /* 高度调整为50%视口 */
-                min-height: 230px;   /* 最小高度降低 */
-            }
-            
-            /* 控制面板间距调整 */
-            .controls-section {
-                gap: 6px;            /* 减少间距 */
-            }
-            
-            /* 选择器调整 */
-            #modelSelector {
-                padding: 10px;       /* 减少内边距 */
-                font-size: 0.85rem;  /* 字体稍小 */
-            }
-            
-            /* 按钮网格布局调整 */
-            .buttons-grid {
-                grid-template-columns: repeat(2, 1fr); /* 改为两列布局 */
-                gap: 6px;            /* 减少间距 */
-            }
-            
-            /* 按钮调整 */
-            button {
-                height: 40px;        /* 高度降低 */
-                padding: 0 4px;      /* 调整内边距 */
-                font-size: 0.8rem;   /* 字体稍小 */
-            }
-            
-            /* 注释面板调整（移动端） */
-            .annotation-panel {
-                max-width: 40%;      /* 宽度限制 */
-                padding: 8px 10px;   /* 调整内边距 */
-                font-size: 0.7rem;   /* 字体更小 */
-                top: 8px;            /* 顶部位置调整 */
-                right: 8px;          /* 右侧位置调整 */
-                line-height: 1.4;    /* 调整行高 */
-                background: rgba(255,255,255,0.5);  /* 更高透明度 */
-            }
-            
-            /* 注释标题调整 */
-            .annotation-panel strong {
-                font-size: 0.8rem;   /* 字体更小 */
-                margin-bottom: 5px;  /* 底部边距调整 */
-            }
-            
-            /* 状态栏调整 */
-            .status-container {
-                margin: 4px 0;       /* 边距调整 */
-                padding: 6px 10px;   /* 内边距调整 */
-                height: 40px;        /* 高度降低 */
-            }
-            
-            /* 状态信息字体调整 */
-            #status-info {
-                font-size: 0.85rem;  /* 字体稍小 */
-            }
-            
-            /* 水印区域调整 */
-            .footer-watermark {
-                padding: 10px 0;     /* 调整内边距 */
-                margin-top: 12px;    /* 顶部边距调整 */
-            }
-            
-            /* 水印内容调整 */
-            .watermark-content {
-                gap: 10px;           /* 减少间距 */
-            }
-            
-            /* Logo容器调整 */
-            .logo-container {
-                width: 50px;         /* 宽度缩小 */
-                height: 50px;        /* 高度缩小 */
-            }
-            
-            /* 文本容器调整 */
-            .text-container {
-                font-size: 0.75rem;  /* 字体缩小 */
-            }
-            
-            /* 第一行文本调整 */
-            .text-container div:first-child {
-                font-size: 0.8rem;   /* 字体大小 */
-            }
+        /* 模型选择器样式 */
+        #modelSelector {
+            padding: 13px 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 1rem;
+            width: 100%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: all 0.3s;
         }
         
-        /* 小屏幕设备（手机等） */
-        @media (max-width: 480px) {
-            /* 标题调整 */
+        #modelSelector:hover {
+            border-color: #2196F3;
+            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+        }
+        
+        /* 错误提示样式 */
+        .error-panel {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: var(--error-bg);
+            color: var(--error-text);
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+            display: none;
+            border-left: 4px solid #d9534f;
+        }
+        
+        .error-title {
+            font-weight: bold;
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .error-title::before {
+            content: "⚠️";
+            font-size: 1.5rem;
+        }
+        
+        .error-content {
+            margin-top: 15px;
+        }
+        
+        .error-list {
+            margin: 15px 0 极 25px;
+            padding: 0;
+        }
+        
+        .error-list li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        /* 底部水印样式 */
+        .footer-watermark {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            padding: 20px 0;
+            background: white;
+            margin-top: 30px;
+            border-top: 1px solid #eee;
+            border-radius: 10px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+
+        .watermark-content {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            max-width: 800px;
+            width: 100%;
+            justify-content: center;
+        }
+            
+        .logo-container {
+            width: 80px;
+            height: 80px;
+            padding: 8px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .logo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .text-container {
+            text-align: center;
+            font-size: 15px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .text-container div:first-child {
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            color: #2196F3;
+            margin-bottom: 6px;
+        }
+        
+        .renderer-toggle {
+            margin-top: 20px;
+            background: #f8fafb;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        }
+        
+        .renderer-label {
+            font-size: 16px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .renderer-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+
+        .renderer-switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .renderer-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 30px;
+        }
+
+        .renderer-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        input:checked + .renderer-slider {
+            background-color: #2196F3;
+        }
+
+        input:checked + .renderer-slider:before {
+            transform: translateX(30px);
+        }
+        
+        .mode-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        
+        .info-icon {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: #2196F3;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        
+        .loading-indicator {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 自动旋转控制按钮 */
+        #rotation-control {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 20;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 30px;
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: none; /* 默认隐藏 */
+        }
+        
+        #rotation-control:hover {
+            background: white;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+        }
+        
+        #rotation-control.active {
+            background: #e3f2fd;
+            border-color: #bbdefb;
+        }
+        
+        #rotation-control i {
+            font-size: 18px;
+        }
+        
+        #rotation-control span {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        /* 移动端样式适配 */
+        @media (max-width: 768px) {
+            body {
+                padding: 8px 6px;
+            }
+            
+            header {
+                margin-bottom: 10px;
+            }
+            
             h1 {
-                font-size: 1.15rem;  /* 进一步缩小 */
+                font-size: 1.3rem;
+                margin-bottom: 3px;
             }
             
-            /* 3D查看器调整 */
-            #viewer3d {
-                height: 45vh;       /* 高度进一步降低 */
+            .subtitle {
+                font-size: 0.8rem;
+                margin-bottom: 8px;
             }
             
-            /* 按钮调整 */
+            #viewer3d,
+            #model-viewer-container {
+                height: 300px;
+                border-radius: 8px;
+            }
+            
+            .renderer-toggle {
+                padding: 8px 6px;
+                margin-top: 15px;
+            }
+            
+            .renderer-label {
+                font-size: 11px;
+            }
+            
+            .renderer-switch {
+                width: 45px;
+                height: 22px;
+            }
+            
+            .renderer-slider:before {
+                height: 16px;
+                width: 16px;
+                bottom: 3px;
+            }
+            
+            input:checked + .renderer-slider:before {
+                transform: translateX(23px);
+            }
+            
+            .controls {
+                gap: 10px;
+                margin-top: 15px;
+            }
+            
+            .control-group {
+                padding: 12px 10px;
+            }
+            
+            /* 只在手机端移除标题文字 */
+            .control-group h3 {
+                font-size: 0; /* 隐藏文字内容 */
+                height: 0;    /* 移除高度 */
+                margin-bottom: 0; /* 移除底部边距 */
+            }
+            
+            /* 移除信息图标 */
+            .info-icon {
+                display: none !important;
+            }
+            
+            .mode-buttons {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 6px;
+            }
+            
             button {
-                font-size: 0.75rem;  /* 字体缩小 */
-                height: 38px;        /* 高度稍小 */
+                padding: 8px 6px;
+                font-size: 0.8rem;
+                gap: 4px;
+                text-align: center;
+                justify-content: center;
+                box-shadow: 0 1px 2px rgba(33, 150, 243, 0.3);
             }
             
-            /* 注释面板调整（超小屏幕） */
+            button:hover {
+                transform: translateY(-1px);
+            }
+            
+            #rotation-control {
+                position: absolute;
+                top: 15px;
+                right: 13px;
+                z-index: 20;
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 30px;
+                padding: 5px 10px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                border: 1px solid #e0e0e0;
+                cursor: pointer;
+                transition: all 0.3s;
+                display: none; /* 默认隐藏 */
+            }
+            
+            
+            #rotation-control i {
+                font-size: 13px;
+            }
+            
+            #rotation-control span {
+                font-size: 11px;
+                font-weight: 500;
+                color: #333;
+            }
+
             .annotation-panel {
-                max-width: 45%;      /* 宽度稍大 */
+                top: 6px;
+                right: 6px;
+                max-width: 40%;
                 padding: 7px 8px;   /* 调整内边距 */
                 font-size: 0.65rem;   /* 字体更小 */
+                line-height: 1.4;
+                background: rgba(255, 255, 255, 0.4);
             }
             
-            /* 注释标题调整 */
             .annotation-panel strong {
-                font-size: 0.75rem;   /* 字体大小 */
+                font-size: 0.7rem;
+                margin-bottom: 4px;
             }
             
-            /* 水印区域调整 */
-            .footer-watermark {
-                padding: 8px 0;     /* 调整内边距 */
+            .status-bar {
+                margin-top: 12px;
+                font-size: 0.85rem;
+                padding: 8px 10px;
             }
             
-            /* 文本容器内div调整 */
-            .text-container div {
-                max-width: 85vw;    /* 宽度限制 */
+            /* 修改水印为水平排列 */
+            .watermark-content {
+                flex-direction: row;
+                gap: 15px;
+                text-align: center;
+                align-items: center;
+            }
+            
+            .logo-container {
+                width: 45px;
+                height: 45px;
+                margin: 0;
+            }
+            
+            .text-container {
+                text-align: left;
+                font-size: 11px;
+            }
+            
+            .text-container div:first-child {
+                text-align: center;
+                font-size: 13px;
+            }
+            
+            #modelSelector {
+                padding: 8px 6px;
+                font-size: 0.85rem;
+            }
+        }
+        
+        /* 电脑端专用修复 - 确保完全恢复图一效果 */
+        @media (min-width: 769px) {
+            /* 确保标题和图标可见 */
+            .control-group h3 {
+                display: flex;
+                font-size: 1.2rem;
+                height: auto;
+                margin-bottom: 15px;
+            }
+            
+            /* 确保信息图标可见 */
+            .info-icon {
+                display: inline-block !important;
+            }
+            
+            /* 恢复按钮颜色 - 图一效果 */
+            .control-group#displayModesPanel .mode-buttons button {
+                background: #2196F3; /* 默认蓝色 */
+            }
+            
+            .control-group#displayModesPanel .mode-buttons button.active {
+                background: #4CAF50; /* 飘带模型绿色 */
+            }
+            
+            /* 所有非活动按钮为蓝色 */
+            .control-group#displayModesPanel .mode-buttons button:not(.active) {
+                background: #2196F3;
             }
         }
     </style>
 </head>
 <body>
-    <!-- 主容器 -->
     <div class="container">
-        <!-- 页面标题 -->
-        <h1>蛋白质可视化工具</h1>
+        <header>
+            <h1>蛋白质三维结构可视化平台</h1>
+            <div class="subtitle">交互式探索蛋白质的分子结构与功能</div>
+        </header>
         
-        <!-- 3D可视化区域 -->
+        <div class="renderer-toggle">
+            <span class="renderer-label">3DMol.js 渲染器</span>
+            <label class="renderer-switch">
+                <input type="checkbox" id="rendererSwitch" onchange="toggleRenderer()">
+                <span class="renderer-slider"></span>
+            </label>
+            <span class="renderer-label">Three.js 渲染器</span>
+        </div>
+        
         <div id="viewer3d">
-            <!-- 注释面板 - 固定在右上角 -->
-            
-            <!-- 初始面板信息 -->
             <div class="annotation-panel" id="annotation-panel">
                 <strong>飘带模型 (Ribbon)</strong>
-                <b>定义：</b>用扁平飘带表示二级结构（α螺旋为螺旋状，β折叠为箭头）。
-                <b>特点：</b>忽略原子细节，突出蛋白质骨架的折叠模式。
+                <b>定义：</b>用扁平飘带表示蛋白质二级结构（α螺旋为螺旋状，β折叠为箭头）。
+                <b>特点：</b>忽略原子细节，突出蛋白质骨架的折叠模式，常用颜色区分不同结构域或链。
+            </div>
+            
+            <div class="loading-indicator" id="loadingIndicator">
+                <div class="spinner"></div>
+                <div>正在加载模型，请稍候...</div>
             </div>
         </div>
         
-        <!-- 控制面板区域 -->
-        <div class="controls-section">
-            <!-- 蛋白质模型选择器 -->
-            <select id="modelSelector" onchange="loadSelectedModel()" title="选择要查看的蛋白质模型">
-                <option value="1e6b" selected>1E6B - 基础模型</option>
-                <option value="4ins">4INS - 胰岛素类似物</option>
-                <option value="7rsa_alpha1">7RSA Alpha螺旋</option>
-                <option value="7rsa_beta146_betasheet">7RSA Beta折叠片</option>
-                <option value="7rsa_loop2_loop">7RSA 环状结构</option>
-                <option value="7rsa_turn1_turn">7RSA 转角结构</option>
-                <option value="my_structure">自定义结构</option>
-            </select>
+        <div id="model-viewer-container">
+            <model-viewer 
+                id="model-viewer" 
+                alt="蛋白质三维模型"
+                auto-rotate
+                camera-controls
+                shadow-intensity="1"
+                camera-orbit="45deg 55deg 105%"
+                style="background-color: #FFFFFF"
+            ></model-viewer>
             
-            <!-- 状态栏 -->
-            <div class="status-container">
-                <span id="status-info">模型加载完成</span>
+            <!-- 自动旋转控制按钮 -->
+            <div id="rotation-control" class="active" onclick="toggleAutoRotation()">
+                <i>🔄</i>
+                <span>自动旋转</span>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <h3><span class="info-icon">i</span> 模型选择</h3>
+                <select id="modelSelector" onchange="loadSelectedModel()" title="选择要查看的蛋白质模型">
+                    <option value="1e6b">1E6B - Zeta class glutathione S-transferase</option>
+                    <option value="4ins">4INS - Phosphate-free ribonuclease A</option>
+                    <option value="7rsa_alpha1">7RSA Alpha螺旋</option>
+                    <option value="7rsa_beta146_betasheet">7RSA Beta折叠片</option>
+                    <option value="7rsa_loop2_loop">7RSA 环状结构</option>
+                    <option value="7rsa_turn1_turn">7RSA 转角结构</option>
+                    <option value="my_structure">自定义结构</option>
+                </select>
             </div>
             
-            <!-- 显示模式按钮区域 -->
-            <div class="buttons-grid">
-                <button onclick="setDisplayMode('ribbon')" class="active">🎗️ 飘带模型</button>
-                <button onclick="setDisplayMode('wireframe')">🔲 线棒模型</button>
-                <button onclick="setDisplayMode('ballstick')">⚾ 棒球棍模型</button>
-                <button onclick="setDisplayMode('spacefill')">🔵 空间填充</button>
-                <button onclick="setDisplayMode('surface')">🟢 表面填充</button>
-                <button onclick="setDisplayMode('hydrophobic')">🌊 亲疏水分布</button>
+            <div class="control-group" id="displayModesPanel">
+                <h3><span class="info-icon">i</span> 显示模式</h3>
+                <div class="mode-buttons">
+                    <button onclick="setDisplayMode('ribbon')" class="active">🎗️ 飘带模型</button>
+                    <button onclick="setDisplayMode('wireframe')">🔲 线棒模型</button>
+                    <button onclick="setDisplayMode('ballstick')">⚾ 棒球棍模型</button>
+                    <button onclick="setDisplayMode('spacefill')">🔵 空间填充模型</button>
+                    <button onclick="setDisplayMode('surface')">🟢 表面填充模型</button>
+                    <button onclick="setDisplayMode('hydrophobic')">🌊 亲疏水分布</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-bar" id="status">
+            <span>🔵</span> 正在加载模型...
+        </div>
+        
+        <!-- 错误消息容器 -->
+        <div class="error-panel" id="error-message">
+            <div class="error-title">模型加载失败：HTTP错误 404</div>
+            <div class="error-content">
+                <p>请检查以下可能原因：</p>
+                <ul class="error-list">
+                    <li>模型文件未上传到服务器</li>
+                    <li>文件路径或名称不正确</li>
+                    <li>网络连接问题</li>
+                    <li>服务器限制</li>
+                </ul>
             </div>
         </div>
     </div>
-    
-    <!-- 底部水印区域 -->
-    <div class="footer-watermark">
-        <div class="watermark-content">
-            <!-- Logo容器 -->
-            <div class="logo-container">
-                <!-- BioStruct Logo -->
-                <img src="https://suyecuni.github.io/BioStruct/images/logo.png" alt="BioStruct Logo">
-            </div>
-            <!-- 文本信息 -->
-            <div class="text-container">
-                <div>BioStruct展示平台</div>
-                <div>西南大学生命科学学院 | 制作：兰婷、谢佳宏</div>
-                <div>©Southwest University | Ting Lan, Jiahong Xie</div>
-            </div>
-        </div>
-    </div>
-    
+
     <script>
-        // ========== JavaScript代码实现功能 ==========
+        // 渲染器状态
+        let useModelViewer = false;
+        let currentModel = '1e6b';
+        let modelViewer;
+        let autoRotationEnabled = false; // 默认开启自动旋转
         
-        // 初始化3D分子查看器
-        const viewer = $3Dmol.createViewer("viewer3d", {
-            background: "#ffffff",            // 设置白色背景
-            defaultcolors: $3Dmol.elementColors.JMol // 使用JMOL配色方案
-        });
+        // 页面初始化
+        window.onload = function() {
+            // 初始化Model Viewer
+            modelViewer = document.getElementById('model-viewer');
+            
+            // 初始化3Dmol查看器
+            window.viewer = $3Dmol.createViewer("viewer3d", {
+                background: "#ffffff",
+                defaultcolors: $3Dmol.elementColors.JMol
+            });
+            
+            // 加载模型
+            loadModel();
+            viewer.enableZoom(true);
+            viewer.enablePan(true);
+        };
         
-        // 定义不同的显示模式及其配置
+        // 切换渲染器
+        function toggleRenderer() {
+            useModelViewer = !useModelViewer;
+            
+            // 重新加载当前模型
+            loadModel(currentModel);
+        }
+        
+        // 切换自动旋转
+        function toggleAutoRotation() {
+            autoRotationEnabled = !autoRotationEnabled;
+            const rotationControl = document.getElementById('rotation-control');
+            
+            if (autoRotationEnabled) {
+                modelViewer.setAttribute('auto-rotate', '');
+                rotationControl.classList.add('active');
+                rotationControl.innerHTML = '<i>🔄</i><span>自动旋转</span>';
+            } else {
+                modelViewer.removeAttribute('auto-rotate');
+                rotationControl.classList.remove('active');
+                rotationControl.innerHTML = '<i>⏹️</i><span>旋转已停</span>';
+            }
+        }
+
+        // 显示模式配置
         const displayModes = {
-            // 飘带模型配置
             ribbon: {
                 style: { 
                     cartoon: { 
-                        // 颜色函数：根据氨基酸残基位置返回不同颜色
                         colorfunc: function(atom) {
-                            // 定义不同残基区间段的颜色
-                            const colorBlocks = [
-                                {start: 1, end: 40, color: '#55aa7f'},  // 绿色区间
-                                {start: 41, end: 80, color: '#d2b777'}, // 棕色区间
-                                {start: 81, end: 120, color: '#ff8b8d'},// 粉色区间
-                                {start: 121, end: 160, color: '#af8aff'},// 紫色区间
-                                {start: 161, end: 9999, color: '#55aaff'} // 蓝色区间
-                            ];
-                            const resi = atom.resi; // 当前残基位置
-                            // 查找当前残基所属的颜色区间
-                            for (let block of colorBlocks) {
-                                if (resi >= block.start && resi <= block.end) return block.color;
+                            // 首先按二级结构信息上色
+                            if (atom.ss === 'h') { // α螺旋-红色
+                                return '#ff8b8d';
+                            } else if (atom.ss === 'c') { // loop-黄色
+                                return '#ffee6c';
+                            } else { // β折叠和其他-蓝色
+                                return '#55aaff';
                             }
-                            return '#B0B8C1'; // 默认灰色
-                        },
-                        thickness: 0.6,  // 飘带厚度
-                        arrows: true      // 显示Beta折叠箭头
+                        },  
+                        thickness: 0.6,
+                        arrows: true
                     }
                 },
-                label: "飘带模型" // 显示模式的标签
+                label: "飘带模型"
             },
-            // 线棒模型配置
             wireframe: {
                 style: { 
-                    stick: { radius: 0.12 },          // 化学键半径
-                    sphere: { radius: 0, opacity: 0 } // 隐藏原子球体
+                    stick: { radius: 0.12 },
+                    sphere: { radius: 0, opacity: 0 }
                 },
                 label: "线棒模型"
             },
-            // 棒球棍模型配置
             ballstick: {
                 style: { 
-                    stick: { radius: 0.12 },          // 棍状化学键半径
-                    sphere: { radius: 0.32, opacity: 0.9 } // 原子球体大小和透明度
+                    stick: { radius: 0.12 },
+                    sphere: { radius: 0.32, opacity: 0.9 }
                 },
                 label: "棒球棍模型"
             },
-            // 空间填充模型配置
             spacefill: {
-                style: { sphere: { scale: 0.6 } },    // 球体大小比例
-                surface: { type: $3Dmol.SurfaceType.VDW, opts: { opacity: 0.85 } } // 表面渲染配置
+                style: { sphere: { scale: 0.6 } },
+                surface: { type: $3Dmol.SurfaceType.VDW, opts: { opacity: 0.85 } },
+                label: "空间填充模型"
             },
-            // 表面填充模型配置
             surface: {
-                style: {},  // 不应用特定样式
+                style: {},
                 surface: null,
                 label: "表面填充模型"
             },
-            // 亲疏水分布模型配置
             hydrophobic: {
-                style: () => ({
-                    hydrophobic: { sphere: { color: "#FFD700", scale: 0.6 } }, // 疏水区黄色
-                    default: { sphere: { color: "#4169E1", scale: 0.6 } }      // 亲水区蓝色
+                style: (hydrophobic) => ({
+                    [hydrophobic]: { sphere: { color: "#FFD700", scale: 0.6 } },
+                    default: { sphere: { color: "#4169E1", scale: 0.6 } }
                 }),
                 surface: {
-                    type: $3Dmol.SurfaceType.VDW, // 表面类型
+                    type: $3Dmol.SurfaceType.VDW,
                     opts: { 
-                        opacity: 0.7, // 表面透明度
-                        // 表面颜色函数：根据氨基酸类型决定颜色
+                        opacity: 0.7,
                         colorfunc: (atom) => hydrophobicResidues.includes(atom.resn) ? "#FFD700" : "#4169E1"
                     }
                 },
                 label: "亲疏水分布"
             }
         };
-        
-        // 定义疏水性氨基酸列表
+
+        // 常量定义
         const hydrophobicResidues = ["ALA","VAL","LEU","ILE","MET","PHE","TRP","PRO"];
-        
-        // 每种显示模式的注释信息
+
+        // 注释信息字典
         const annotationDict = {
             ribbon: `<strong>飘带模型 (Ribbon)</strong>
             <b>定义：</b>用扁平飘带表示二级结构（α螺旋为螺旋状，β折叠为箭头）。
             <b>特点：</b>忽略原子细节，突出蛋白质骨架的折叠模式。`,
             wireframe: `<strong>线棒模型 (Wireframe)</strong>
-            <b>定义：</b>用线条表示化学键，原子用线条的节点表示。
+            <b>定义：</b>线条表示化学键，节点表示原子。
             <b>特点：</b>结构简洁，突出分子骨架和键的走向。`,
             ballstick: `<strong>棒球棍模型 (Ball-and-stick)</strong>
             <b>定义：</b>原子用彩色球体表示，化学键用棍状连接。
@@ -559,113 +854,189 @@
             <b>定义：</b>通过颜色标记分子的亲水（极性）和疏水（非极性）区域。
             <b>特点：</b>极性区域常用蓝色表示，疏水区域常用黄色表示。`
         };
-        
-        // 功能：设置当前显示模式
+
+        // 核心显示函数
         async function setDisplayMode(mode) {
-            // 清除现有的表面渲染
+            // 如果使用Model Viewer则返回
+            if (useModelViewer) return;
+            
             viewer.removeAllSurfaces();
-            // 重置样式
             viewer.setStyle({}, {});
             const config = displayModes[mode];
             if (!config) return;
-            
-            // 应用样式配置
+
             viewer.setStyle({}, config.style);
-            
-            // 特殊处理亲疏水模式
             if (mode === 'hydrophobic') {
-                // 设置疏水区域样式
-                viewer.setStyle({ resn: hydrophobicResidues }, config.style().hydrophobic);
-                // 设置其他区域样式
+                viewer.setStyle({ resn: hydrophobicResidues }, config.style(hydrophobicResidues)[hydrophobicResidues]);
                 viewer.setStyle({ resn: { $not: hydrophobicResidues } }, config.style().default);
-                // 添加表面渲染
                 viewer.addSurface(config.surface.type, config.surface.opts);
             } else if (mode === 'surface') {
-                // 表面填充模型特定的表面设置
                 viewer.addSurface($3Dmol.SurfaceType.VDW, {
-                    opacity: 0.92,         // 透明度
-                    color: 'spectrum',     // 颜色谱
-                    smooth: 16,            // 平滑度
-                    probeRadius: 2.2        // 探针半径
+                    opacity: 0.92,
+                    color: 'spectrum',
+                    smooth: 16,
+                    probeRadius: 2.2
                 });
             } else {
-                // 添加其他模式的表面渲染
                 if (config.surface) {
                     viewer.addSurface(config.surface.type, config.surface.opts);
                 }
             }
-            
-            // 更新状态栏信息
-            document.getElementById('status-info').textContent = `当前模式：${config.label}`;
-            // 更新按钮激活状态
-            document.querySelectorAll('button').forEach(btn => {
+
+            document.getElementById('status').textContent = `当前模式：${config.label}`;
+            document.querySelectorAll('.mode-buttons button').forEach(btn => {
                 btn.classList.toggle('active', btn.textContent.includes(config.label));
             });
             
-            // 更新注释面板内容
             document.getElementById('annotation-panel').innerHTML = annotationDict[mode] || '';
-            // 渲染查看器
             viewer.render();
         }
+
+        // 控制按钮可见性
+        function updateButtonVisibility() {
+            const displayModesPanel = document.getElementById('displayModesPanel');
+            const annotationPanel = document.getElementById('annotation-panel');
+            const rotationControl = document.getElementById('rotation-control');
+            
+            // 在Model Viewer下隐藏按钮和注释，显示旋转控制
+            if (useModelViewer) {
+                displayModesPanel.style.display = 'none';
+                annotationPanel.style.display = 'none';
+                rotationControl.style.display = 'flex';
+            } else {
+                displayModesPanel.style.display = 'block';
+                // 对于非1e6b模型也隐藏注释
+                annotationPanel.style.display = currentModel === '1e6b' ? 'block' : 'none';
+                rotationControl.style.display = 'none';
+            }
+        }
+
+        // 显示加载指示器
+        function showLoadingIndicator() {
+            document.getElementById('loadingIndicator').style.display = 'block';
+        }
         
-        // 功能：加载蛋白质模型
+        // 隐藏加载指示器
+        function hideLoadingIndicator() {
+            document.getElementById('loadingIndicator').style.display = 'none';
+        }
+
+        // 加载模型
         async function loadModel(modelName = '1e6b') {
             try {
+                // 显示加载指示器
+                showLoadingIndicator();
                 
-                // 更新加载状态
-                document.getElementById('status-info').textContent = "正在加载模型...";
-                // 清除现有模型
-                viewer.removeAllModels();
+                // 隐藏错误消息
+                document.getElementById('error-message').style.display = 'none';
+                document.getElementById('status').innerHTML = `<span>🔄</span> 正在加载模型：${modelName}...`;
                 
-                // 构造模型URL
-                const url = `https://suyecuni.github.io/BioStruct/models/${modelName}.pdb`;
-                // 获取模型文件
-                const response = await fetch(url);
+                currentModel = modelName;
+                updateButtonVisibility();
                 
-                // 错误处理
-                if (!response.ok) throw new Error(`加载模型失败`);
-                // 更新解析状态
-                document.getElementById('status-info').textContent = "解析模型数据...";
+                // 确定渲染器
+                const viewerContainer = document.getElementById('viewer3d');
+                const modelViewerContainer = document.getElementById('model-viewer-container');
                 
-                // 获取文本数据
-                const data = await response.text();
-                // 向查看器添加模型
-                viewer.addModel(data, "pdb");
-                // 设置默认显示模式
-                setDisplayMode('ribbon');
-                // 调整视图到合适大小
-                viewer.zoomTo();
-                // 渲染查看器
-                viewer.render();
-                // 更新加载完成状态
-                document.getElementById('status-info').textContent = "模型加载完成";
+                // 根据渲染器选择文件格式
+                const fileExtension = useModelViewer ? 'glb' : 'pdb';
+                const modelPath = `https://suyecuni.github.io/BioStruct/models/${modelName}.${fileExtension}`;
+                
+                if (useModelViewer) {
+                    // 显示Model Viewer，隐藏3Dmol
+                    viewerContainer.style.display = 'none';
+                    modelViewerContainer.style.display = 'block';
+                    
+                    document.getElementById('status').innerHTML = `<span>🔍</span> 使用Three.js加载模型...`;
+                    modelViewer.src = modelPath;
+                    
+                    // 确保自动旋转状态正确
+                    if (autoRotationEnabled) {
+                        modelViewer.setAttribute('auto-rotate', '');
+                    } else {
+                        modelViewer.removeAttribute('auto-rotate');
+                    }
+                    
+                    // 等待模型加载
+                    await new Promise((resolve, reject) => {
+                        modelViewer.addEventListener('load', () => {
+                            resolve();
+                            hideLoadingIndicator();
+                        });
+                        modelViewer.addEventListener('error', (err) => {
+                            reject(err);
+                            hideLoadingIndicator();
+                        });
+                    });
+                    
+                    document.getElementById('status').innerHTML = `<span>✅</span> 模型加载完成 (Three.js)`;
+                } else {
+                    // 显示3Dmol，隐藏Model Viewer
+                    modelViewerContainer.style.display = 'none';
+                    viewerContainer.style.display = 'flex';
+                    
+                    viewer.removeAllModels();
+                    
+                    document.getElementById('status').innerHTML = `<span>🔍</span> 使用3DMol.js加载模型...`;
+                    
+                    const response = await fetch(modelPath);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误 ${response.status}`);
+                    }
+                    
+                    const data = await response.text();
+                    viewer.addModel(data, "pdb");
+                    
+                    // 设置默认显示模式
+                    setDisplayMode('ribbon');
+                    
+                    viewer.zoomTo();
+                    viewer.render();
+                    document.getElementById('status').innerHTML = `<span>✅</span> 模型加载完成 (3DMol.js)`;
+                    hideLoadingIndicator();
+                }
                 
                 return true;
             } catch (error) {
-                // 错误处理
-                document.getElementById('status-info').textContent = "模型加载失败：" + error.message;
+                hideLoadingIndicator();
+                const errorMsg = `模型加载失败：${error.message}`;
+                document.getElementById('status').innerHTML = `<span>❌</span> ${errorMsg}`;
+                
+                // 显示错误消息
+                const errorElement = document.getElementById('error-message');
+                const errorTitle = errorElement.querySelector('.error-title');
+                errorTitle.textContent = errorMsg;
+                errorElement.style.display = 'block';
+                
+                console.error(error);
                 return false;
             }
         }
-        
-        // 功能：处理模型选择变化
+
+        // 新增选择器处理函数
         function loadSelectedModel() {
             const selector = document.getElementById('modelSelector');
             const modelName = selector.value;
             loadModel(modelName);
         }
-        
-        // 页面初始化完成后执行的操作
-        document.addEventListener('DOMContentLoaded', function() {
-            // 加载默认模型
-            loadModel();
-            // 启用缩放
-            viewer.enableZoom(true);
-            // 启用平移
-            viewer.enablePan(true);
-            // 设置初始注释内容
-            document.getElementById('annotation-panel').innerHTML = annotationDict['ribbon'];
-        });
     </script>
+
+    <!-- 底部水印区域 -->
+    <div class="footer-watermark">
+        <div class="watermark-content">
+            <div class="logo-container">
+                <div class="logo">
+                    <!-- 使用绝对路径确保logo正确加载 -->
+                    <img src="https://suyecuni.github.io/BioStruct/images/logo.png" alt="BioStruct Logo">
+                </div>
+            </div>
+            <div class="text-container">
+                <div>BioStruct展示平台</div>
+                <div>西南大学生命科学学院 | 制作：兰婷、谢佳宏</div>
+                <div>© Southwest University | Ting Lan, Jiahong Xie</div>
+            </div>
+        </div> 
+    </div>
 </body>
 </html>
