@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>蛋白质可视化工具</title>
+    <title>生物大分子三维结构可视化工具</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.1.0/3Dmol-min.js"></script>
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <style>
@@ -240,7 +240,7 @@
             width: 100%;
             padding: 20px 0;
             background: white;
-            margin-top: 30px;
+            margin-top: 15px;
             border-top: 1px solid #eee;
             border-radius: 10px;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
@@ -568,6 +568,10 @@
             }
             
             /* 修改水印为水平排列 */
+            .footer-watermark {               
+                padding: 10px 0;               
+            }
+
             .watermark-content {
                 flex-direction: row;
                 gap: 2px;
@@ -632,8 +636,8 @@
 <body>
     <div class="container">
         <header>
-            <h1>蛋白质三维结构可视化平台</h1>
-            <div class="subtitle">交互式探索蛋白质的分子结构与功能</div>
+            <h1>生物大分子三维结构可视化平台</h1>
+            <div class="subtitle">交互式探索生物大分子的分子结构与功能</div>
         </header>
         
         <div class="renderer-toggle">
@@ -649,7 +653,7 @@
             <div class="annotation-panel" id="annotation-panel">
                 <strong>飘带模型 (Ribbon)</strong>
                 <b>定义：</b>用扁平飘带表示蛋白质二级结构（α螺旋为螺旋状，β折叠为箭头）。
-                <b>特点：</b>忽略原子细节，突出蛋白质骨架的折叠模式，常用颜色区分不同结构域或链。
+                <b>特点：</b>忽略原子细节，突出蛋白质骨架的折叠模式。
             </div>
             
             <div class="loading-indicator" id="loadingIndicator">
@@ -682,8 +686,8 @@
                 <select id="modelSelector" onchange="loadSelectedModel()" title="选择要查看的蛋白质模型">
                     <option value="1e6b">1E6B - Zeta class glutathione S-transferase</option>
                     <option value="4ins">4INS - Phosphate-free ribonuclease A</option>
-                    <option value="7rsa_alpha1">7RSA Alpha螺旋</option>
-                    <option value="7rsa_beta146_betasheet">7RSA Beta折叠片</option>
+                    <option value="7rsa_alpha1">7RSA α螺旋</option>
+                    <option value="7rsa_beta146_betasheet">7RSA β折叠片</option>
                     <option value="7rsa_loop2_loop">7RSA 环状结构</option>
                     <option value="7rsa_turn1_turn">7RSA 转角结构</option>
                     <option value="my_structure">自定义结构</option>
