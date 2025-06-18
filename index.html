@@ -261,7 +261,7 @@
             padding: 8px;
             background: white;
             border-radius: 12px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            /* box-shadow: 0 3px 10px rgba(0,0,0,0.1); */
         }
 
         .logo-container img {
@@ -570,25 +570,26 @@
             /* 修改水印为水平排列 */
             .watermark-content {
                 flex-direction: row;
-                gap: 15px;
+                gap: 2px;
                 text-align: center;
                 align-items: center;
             }
             
             .logo-container {
-                width: 45px;
-                height: 45px;
+                width: 50px;
+                height: 50px;
                 margin: 0;
             }
             
             .text-container {
-                text-align: left;
-                font-size: 11px;
+                text-align: center;
+                font-size: 9px;
             }
             
             .text-container div:first-child {
                 text-align: center;
                 font-size: 13px;
+                margin-bottom: 1px;   /* 设置标题与小字的间距 */
             }
             
             #modelSelector {
@@ -670,7 +671,7 @@
             
             <!-- 自动旋转控制按钮 -->
             <div id="rotation-control" class="active" onclick="toggleAutoRotation()">
-                <i>🔄</i>
+                <i>⏹️</i>
                 <span>自动旋转</span>
             </div>
         </div>
@@ -726,7 +727,7 @@
         let useModelViewer = false;
         let currentModel = '1e6b';
         let modelViewer;
-        let autoRotationEnabled = false; // 默认开启自动旋转
+        let autoRotationEnabled = false; // 自动旋转默认关闭
         
         // 页面初始化
         window.onload = function() {
@@ -1033,8 +1034,8 @@
             </div>
             <div class="text-container">
                 <div>BioStruct展示平台</div>
-                <div>西南大学生命科学学院 | 制作：兰婷、谢佳宏</div>
-                <div>© Southwest University | Ting Lan, Jiahong Xie</div>
+                <div>西南大学生命科学学院 | 制作：兰婷、谢佳宏、郭小纬</div>
+                <div>© Southwest University | Ting Lan, Jiahong Xie, Xiaowei Guo</div>
             </div>
         </div> 
     </div>
